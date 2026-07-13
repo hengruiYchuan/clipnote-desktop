@@ -1,9 +1,39 @@
-* {
-  box-sizing: border-box;
+:root {
+  --paper: #efe9dc;
+  --paper-bright: #f8f3e9;
+  --ink: #171713;
+  --ink-muted: #68645b;
+  --proof-red: #e63c27;
+  --editor-blue: #315fd6;
+  --acid-note: #d7ef45;
+  --rule: color-mix(in srgb, var(--ink) 24%, transparent);
+  --font-display: var(--font-serif), "Songti SC", serif;
+  --font-body: var(--font-serif), "Noto Serif SC", serif;
+  --font-mono: var(--font-plex-mono), "SFMono-Regular", monospace;
+  --ease-editorial: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 160ms;
+  --duration-scene: 720ms;
 }
 
-html,
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); }
 body {
   margin: 0;
-  padding: 0;
+  min-height: 100vh;
+  background: var(--paper) url("/textures/paper-noise.svg");
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+}
+a { color: inherit; }
+button, input, textarea { font: inherit; }
+:focus-visible { outline: 3px solid var(--editor-blue); outline-offset: 4px; }
+::selection { background: var(--acid-note); color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
