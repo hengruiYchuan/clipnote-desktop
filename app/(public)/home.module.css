@@ -1,0 +1,293 @@
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.65fr);
+  grid-template-areas:
+    "kicker kicker"
+    "title lede"
+    "title action";
+  gap: 2.5rem 5vw;
+  align-items: end;
+  min-height: calc(82svh - 3.5rem);
+  padding: clamp(5rem, 10vw, 9rem) 5vw 4rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--ink);
+}
+
+.hero > div:nth-of-type(1) { grid-area: kicker; }
+.hero > div:nth-of-type(2) { grid-area: title; }
+.hero > div:nth-of-type(3) { grid-area: lede; }
+.hero > div:nth-of-type(4) { grid-area: action; }
+
+.kicker,
+.sectionNumber {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  max-width: 12ch;
+  font-size: clamp(4rem, 9vw, 9rem);
+  font-weight: 900;
+  line-height: 0.88;
+  letter-spacing: -0.075em;
+}
+
+.hero h1 em {
+  display: block;
+  margin-left: min(12vw, 10rem);
+  font-weight: 400;
+}
+
+.lede {
+  max-width: 32rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  border-left: 0.45rem solid var(--proof-red);
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  line-height: 1.9;
+}
+
+.proofStamp {
+  position: absolute;
+  top: 19%;
+  right: 24%;
+  padding: 0.65rem 1rem;
+  border: 2px solid var(--proof-red);
+  border-radius: 50%;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-align: center;
+  transform: rotate(9deg);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--ink);
+}
+
+.facts article {
+  display: flex;
+  min-height: 14rem;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem;
+  border-right: 1px solid var(--ink);
+}
+
+.facts article:last-child { border-right: 0; }
+.facts strong { color: var(--proof-red); font-family: var(--font-mono); font-size: clamp(3rem, 6vw, 6rem); font-weight: 400; }
+.facts span { max-width: 12rem; font-size: 1.05rem; }
+
+.manifesto {
+  display: grid;
+  grid-template-columns: 0.55fr 1.45fr;
+  gap: 3rem;
+  padding: clamp(5rem, 10vw, 10rem) 5vw;
+  border-bottom: 1px solid var(--ink);
+}
+
+.manifesto p { margin: 0; color: var(--proof-red); font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; }
+.manifesto h2 { max-width: 18ch; margin: 0; font-size: clamp(2.8rem, 6vw, 6.8rem); font-weight: 600; line-height: 1.03; letter-spacing: -0.06em; }
+
+.selectedWork {
+  padding: clamp(4rem, 8vw, 8rem) 5vw;
+  border-bottom: 1px solid var(--ink);
+}
+
+.workHeader {
+  display: grid;
+  grid-template-columns: 0.55fr 1.45fr;
+  gap: 3rem;
+  align-items: start;
+  margin-bottom: clamp(2.5rem, 5vw, 5rem);
+}
+
+.workHeader h2 {
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 6.8rem);
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+}
+
+.workHeader p {
+  max-width: 34rem;
+  margin: 1.5rem 0 0;
+  color: var(--ink-muted);
+  line-height: 1.8;
+}
+
+.workSpread {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  min-height: clamp(32rem, 55vw, 48rem);
+  border: 1px solid var(--ink);
+  background: var(--paper-bright);
+  box-shadow: 1.2rem 1.2rem 0 var(--ink);
+}
+
+.workCover {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: clamp(1.5rem, 3vw, 3rem);
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
+.workCover::after {
+  position: absolute;
+  inset: 12% -8% auto auto;
+  width: clamp(12rem, 25vw, 25rem);
+  aspect-ratio: 1;
+  border: clamp(1rem, 2.6vw, 2.8rem) solid var(--proof-red);
+  content: "";
+  transform: rotate(13deg);
+}
+
+.coverMeta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.coverTitle {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: clamp(5rem, 11vw, 11rem);
+  font-weight: 900;
+  line-height: 0.73;
+  letter-spacing: -0.12em;
+}
+
+.coverType {
+  position: relative;
+  z-index: 1;
+  align-self: flex-end;
+  max-width: 12rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  text-align: right;
+}
+
+.workNotes {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 5vw, 5rem);
+  background-image: linear-gradient(var(--rule) 1px, transparent 1px);
+  background-size: 100% 2rem;
+}
+
+.proofMark {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  color: var(--proof-red);
+  font-size: clamp(3rem, 6vw, 6rem);
+  line-height: 1;
+  transform: rotate(8deg);
+}
+
+.noteLabel {
+  margin: 0 0 2rem;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+
+.workNotes blockquote {
+  margin: 0 0 clamp(3rem, 7vw, 7rem);
+  font-size: clamp(1.8rem, 3.4vw, 3.6rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
+}
+
+.workNotes dl { margin: 0; border-top: 1px solid var(--ink); }
+.workNotes dl div { display: grid; grid-template-columns: 6rem 1fr; gap: 1rem; padding: 0.9rem 0; border-bottom: 1px solid var(--rule); }
+.workNotes dt { color: var(--ink-muted); font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em; }
+.workNotes dd { margin: 0; font-size: 0.9rem; }
+
+.route { padding: clamp(4rem, 8vw, 8rem) 5vw; border-bottom: 1px solid var(--ink); }
+.route > div { display: grid; grid-template-columns: 0.55fr 1.45fr; gap: 3rem; margin-bottom: 4rem; }
+.route h2 { max-width: 16ch; margin: 0; font-size: clamp(2.2rem, 4vw, 4.4rem); line-height: 1.05; letter-spacing: -0.05em; }
+.route ol { display: grid; grid-template-columns: repeat(7, 1fr); margin: 0; padding: 0; border: 1px solid var(--ink); list-style: none; }
+.route li { display: flex; min-height: 12rem; flex-direction: column; justify-content: space-between; padding: 1rem; border-right: 1px solid var(--ink); transition: background var(--duration-fast), color var(--duration-fast); }
+.route li:last-child { border-right: 0; }
+.route li:hover { background: var(--ink); color: var(--paper); }
+.route li span { color: var(--proof-red); font-family: var(--font-mono); font-size: 0.7rem; }
+.route li strong { align-self: center; font-size: 1.15rem; letter-spacing: 0.18em; writing-mode: vertical-rl; }
+
+.finalCta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 2rem;
+  min-height: 55svh;
+  padding: clamp(4rem, 8vw, 8rem) 5vw;
+  background: var(--proof-red);
+  color: var(--paper-bright);
+}
+
+.finalCta p { max-width: 12ch; margin: 0; font-size: clamp(3.5rem, 8vw, 9rem); font-weight: 900; line-height: 0.93; letter-spacing: -0.075em; }
+
+@media (max-width: 60rem) {
+  .hero {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "kicker"
+      "title"
+      "lede"
+      "action";
+    min-height: auto;
+  }
+  .proofStamp { right: 8%; }
+  .workSpread { grid-template-columns: 1fr 1fr; box-shadow: 0.75rem 0.75rem 0 var(--ink); }
+  .route ol { grid-template-columns: repeat(4, 1fr); }
+  .route li { border-bottom: 1px solid var(--ink); }
+  .route li:nth-child(4) { border-right: 0; }
+}
+
+@media (max-width: 47.5rem) {
+  .hero { padding: 4rem 1rem 3rem; }
+  .hero h1 { font-size: clamp(3.6rem, 18vw, 6rem); }
+  .hero h1 em { margin: 0.4rem 0 0 2rem; }
+  .proofStamp { display: none; }
+  .facts { grid-template-columns: 1fr; }
+  .facts article { min-height: 9rem; padding: 1.5rem 1rem; border-right: 0; border-bottom: 1px solid var(--ink); }
+  .manifesto, .workHeader, .route > div, .finalCta { grid-template-columns: 1fr; }
+  .manifesto, .selectedWork, .route, .finalCta { padding-inline: 1rem; }
+  .workSpread { grid-template-columns: 1fr; box-shadow: 0.5rem 0.5rem 0 var(--ink); }
+  .workCover { min-height: 31rem; }
+  .workNotes { min-height: 34rem; padding: 3rem 1.5rem; }
+  .workNotes dl div { grid-template-columns: 5.5rem 1fr; }
+  .route ol { grid-template-columns: 1fr; }
+  .route li { min-height: 5rem; flex-direction: row; align-items: center; border-right: 0; }
+  .route li strong { writing-mode: horizontal-tb; }
+  .finalCta { min-height: 70svh; align-content: space-between; }
+}

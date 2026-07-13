@@ -32,11 +32,14 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+.cursor/
 
-# Local brainstorming and browser artifacts
+# Local indexes, brainstorming, and browser artifacts
+.codegraph/
 .superpowers/
 .playwright-cli/
 
 # Generated local data
 *.sqlite
 *.sqlite-journal
+*.tsbuildinfo
