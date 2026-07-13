@@ -1,5 +1,5 @@
 use serde::Serialize;
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 const MAIN_WINDOW: &str = "main";
 const EDGE_MARGIN: i32 = 12;
@@ -80,15 +80,35 @@ fn apply_geometry(app: &AppHandle, geometry: Geometry) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_main_window_mode(app: AppHandle) -> Result<&'static str, String> {
+    let window = app
+        .get_webview_window(MAIN_WINDOW)
+        .ok_or_else(|| "main window is unavailable".to_string())?;
+    let width = window
+        .outer_size()
+        .map_err(|error| error.to_string())?
+        .width;
+    Ok(if width <= COLLAPSED_WIDTH + 24 {
+        "collapsed"
+    } else {
+        "expanded"
+    })
+}
+
+#[tauri::command]
 pub fn expand_main_window(app: AppHandle) -> Result<(), String> {
     let (area, scale) = current_work_area(&app)?;
-    apply_geometry(&app, expanded_geometry(area, scale))
+    apply_geometry(&app, expanded_geometry(area, scale))?;
+    app.emit("shell-mode-changed", "expanded")
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub fn collapse_main_window(app: AppHandle) -> Result<(), String> {
     let (area, scale) = current_work_area(&app)?;
-    apply_geometry(&app, collapsed_geometry(area, scale))
+    apply_geometry(&app, collapsed_geometry(area, scale))?;
+    app.emit("shell-mode-changed", "collapsed")
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

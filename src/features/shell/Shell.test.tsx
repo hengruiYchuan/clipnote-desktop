@@ -10,6 +10,7 @@ vi.mock("../../bridge/desktopBridge", () => ({
     expand: vi.fn(),
     collapse: vi.fn(),
     toggle: vi.fn(),
+    onModeChanged: vi.fn().mockResolvedValue(vi.fn()),
   },
 }));
 

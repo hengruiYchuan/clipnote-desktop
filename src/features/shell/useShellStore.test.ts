@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useShellStore } from "./useShellStore";
 
 beforeEach(() => {
@@ -22,5 +22,17 @@ describe("shell store", () => {
       mode: "expanded",
       section: "notes",
     });
+  });
+
+  it("does not republish an already applied native mode", () => {
+    useShellStore.setState({ mode: "expanded" });
+    const listener = vi.fn();
+    const unsubscribe = useShellStore.subscribe(listener);
+
+    useShellStore.getState().setMode("expanded");
+    useShellStore.getState().expand();
+
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
   });
 });
