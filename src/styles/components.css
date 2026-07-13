@@ -128,6 +128,108 @@
   color: var(--accent-deep);
 }
 
+.notes {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.notes__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.notes__heading span {
+  color: var(--accent-deep);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.notes__heading h2 {
+  margin: 4px 0 0;
+  font: 620 28px/1.15 var(--font-editorial);
+}
+
+.notes__heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--ink-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper-sheet);
+  padding: 9px 12px;
+  box-shadow: 3px 3px 0 var(--ink-strong);
+  cursor: pointer;
+}
+
+.notes__heading button > svg {
+  width: 16px;
+}
+
+.notes__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-1) var(--space-6);
+}
+
+.note-sheet {
+  min-height: 178px;
+  border: 1px solid rgb(38 35 31 / 20%);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  padding: var(--space-5);
+  box-shadow: 4px 4px 0 var(--ink-strong), 0 16px 30px rgb(38 35 31 / 12%);
+}
+
+.note-sheet[data-tone="sun"] { background: var(--paper-note); }
+.note-sheet[data-tone="mint"] { background: var(--paper-mint); }
+.note-sheet[data-tone="paper"] { background: var(--paper-raised); }
+
+.note-sheet h3 {
+  margin: 0 0 var(--space-3);
+  font: 650 22px/1.2 var(--font-editorial);
+}
+
+.note-sheet p {
+  margin: 0;
+  color: var(--ink-body);
+  line-height: 1.65;
+}
+
+.note-sheet ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-sheet label {
+  display: grid;
+  grid-template-columns: 0 17px 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-body);
+  line-height: 1.4;
+}
+
+.note-sheet input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  opacity: 0;
+}
+
+.note-sheet label > svg {
+  width: 17px;
+  height: 17px;
+  color: var(--accent-deep);
+}
+
 @media (min-width: 700px) {
   .library__grid {
     grid-template-columns: 1.08fr .92fr;
