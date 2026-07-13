@@ -1,10 +1,15 @@
+import { EdgeTab } from "../features/shell/EdgeTab";
+import { Workspace } from "../features/shell/Workspace";
+import { useShellStore } from "../features/shell/useShellStore";
+
 export function App() {
-  return (
-    <main aria-label="ClipNote 桌面工作台">
-      <button type="button" aria-label="打开 ClipNote 工作台">
-        ClipNote
-      </button>
-      <p>你的工作碎片，随手归档。</p>
-    </main>
+  const mode = useShellStore((state) => state.mode);
+
+  return mode === "collapsed" ? (
+    <EdgeTab />
+  ) : (
+    <Workspace>
+      <section aria-label="工作台内容" />
+    </Workspace>
   );
 }
