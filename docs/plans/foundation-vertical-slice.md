@@ -1,12 +1,12 @@
 # 《未定稿》首个纵向切片 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 执行说明：按任务顺序实现，每个任务都以失败测试、最小实现和真实浏览器验证闭环。步骤使用 checkbox（`- [ ]`）跟踪。
 
 **Goal:** 构建一个可在真实浏览器中体验的《未定稿》首个纵向切片，覆盖作品级品牌首页、自由选题访谈、AI 诊断、Day 1 私人工作室和第 001 期发行特刊。
 
-**Architecture:** 采用 Next.js App Router + TypeScript 的模块化单体。第一阶段先建立品牌体验与申请到入驻的核心闭环；业务规则集中在 `src/features`，页面只编排组件；AI 诊断通过可替换 provider 接口接入 Anthropic，演示模式使用显式 deterministic provider，不把失败静默伪装成 AI 成功。持久化、账户、支付、小班协作和主编后台在后续独立计划中实现，避免首个切片铺出大量空壳模块。
+**Architecture:** 采用 Next.js App Router + TypeScript 的模块化单体。第一阶段先建立品牌体验与申请到入驻的核心闭环；业务规则集中在 `features`，页面只编排组件；AI 诊断依赖供应商中立的 provider 接口，首个真实实现使用 OpenAI Responses API，演示模式使用显式 deterministic provider，不把失败静默伪装成 AI 成功。持久化、账户、支付、小班协作和主编后台在后续独立计划中实现，避免首个切片铺出大量空壳模块。
 
-**Tech Stack:** Next.js、React、TypeScript、CSS Modules、Motion、Zod、Anthropic TypeScript SDK、Vitest、Testing Library、Playwright、axe-core。
+**Tech Stack:** Next.js、React、TypeScript、CSS Modules、Motion、Zod、OpenAI JavaScript SDK、Vitest、Testing Library、Playwright、axe-core。
 
 ---
 
@@ -60,7 +60,7 @@ features/
   diagnosis/
     diagnosis.schema.ts               # 结构化诊断契约
     diagnosis-provider.ts             # provider 接口
-    anthropic-diagnosis-provider.ts   # Claude 实现
+    openai-diagnosis-provider.ts      # OpenAI 适配器
     demo-diagnosis-provider.ts        # 显式演示实现
     create-diagnosis.ts               # provider 选择与用例
     diagnosis-sheet.tsx               # 诊断单 UI
@@ -131,7 +131,7 @@ Expected: `package.json`、`app/`、`next.config.ts`、`tsconfig.json` 创建成
 Run:
 
 ```bash
-npm install motion zod @anthropic-ai/sdk clsx
+npm install motion zod openai clsx
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event @playwright/test @axe-core/playwright prettier prettier-plugin-organize-imports
 ```
 
@@ -812,12 +812,12 @@ git add app/'(public)'/apply features/application tests/e2e/application.spec.ts
 git commit -m "feat: build editorial application interview"
 ```
 
-## Task 6: 建立结构化 AI 诊断契约与 Anthropic Provider
+## Task 6: 建立结构化 AI 诊断契约与 OpenAI Provider
 
 **Files:**
 - Create: `features/diagnosis/diagnosis.schema.ts`
 - Create: `features/diagnosis/diagnosis-provider.ts`
-- Create: `features/diagnosis/anthropic-diagnosis-provider.ts`
+- Create: `features/diagnosis/openai-diagnosis-provider.ts`
 - Create: `features/diagnosis/demo-diagnosis-provider.ts`
 - Create: `features/diagnosis/create-diagnosis.ts`
 - Create: `features/diagnosis/create-diagnosis.test.ts`
@@ -899,30 +899,30 @@ export interface DiagnosisProvider { diagnose(answers: CompleteApplicationAnswer
 
 `features/diagnosis/demo-diagnosis-provider.ts` 返回明确标记为演示规则生成的诊断，并固定 `verdict: "revise"`、三步 coreFlow、至少一个 mustCut。页面必须显示“演示评估，不代表正式 AI 审核”，禁止将其伪装为线上 AI 输出。
 
-- [ ] **Step 5: 实现 Anthropic provider**
+- [ ] **Step 5: 实现 OpenAI provider**
 
-Create `features/diagnosis/anthropic-diagnosis-provider.ts`:
+Create `features/diagnosis/openai-diagnosis-provider.ts`:
 
 ```ts
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import type { CompleteApplicationAnswers } from "@/features/application/application.schema";
 import type { DiagnosisProvider } from "./diagnosis-provider";
 import { diagnosisSchema } from "./diagnosis.schema";
 
-export class AnthropicDiagnosisProvider implements DiagnosisProvider {
-  constructor(private readonly client = new Anthropic()) {}
+export class OpenAIDiagnosisProvider implements DiagnosisProvider {
+  constructor(private readonly client: OpenAI, private readonly model = "gpt-5.6-terra") {}
   async diagnose(answers: CompleteApplicationAnswers) {
-    const response = await this.client.messages.parse({
-      model: process.env.ANTHROPIC_DIAGNOSIS_MODEL ?? "claude-opus-4-8",
-      max_tokens: 4000,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "high", format: zodOutputFormat(diagnosisSchema) },
-      system: "你是《未定稿》的选题编辑。温暖、具体、克制。你的任务是判断一个非技术创作者的自由选题能否在七天内形成真实可试用的 AI 微应用。优先删减，不替用户扩大范围。只依据用户提供的内容，不编造市场事实。",
-      messages: [{ role: "user", content: JSON.stringify(answers) }],
+    const response = await this.client.responses.parse({
+      model: this.model,
+      store: false,
+      reasoning: { effort: "low" },
+      instructions: "你是《未定稿》的选题编辑。具体、克制，优先删减，不编造事实。",
+      input: JSON.stringify(answers),
+      text: { format: zodTextFormat(diagnosisSchema, "editorial_diagnosis") },
     });
-    if (!response.parsed_output) throw new Error("DIAGNOSIS_PARSE_FAILED");
-    return response.parsed_output;
+    if (!response.output_parsed) throw new Error("DIAGNOSIS_PARSE_FAILED");
+    return response.output_parsed;
   }
 }
 ```
@@ -941,19 +941,19 @@ Create `lib/env.ts`:
 
 ```ts
 import { z } from "zod";
-const schema = z.object({ APP_DEMO_MODE: z.enum(["true", "false"]).default("true"), ANTHROPIC_API_KEY: z.string().optional(), ANTHROPIC_DIAGNOSIS_MODEL: z.string().optional() });
-export const env = schema.parse({ APP_DEMO_MODE: process.env.APP_DEMO_MODE, ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, ANTHROPIC_DIAGNOSIS_MODEL: process.env.ANTHROPIC_DIAGNOSIS_MODEL });
+const schema = z.object({ AI_PROVIDER: z.enum(["demo", "openai"]).default("demo"), OPENAI_API_KEY: z.string().optional(), OPENAI_DIAGNOSIS_MODEL: z.string().default("gpt-5.6-terra") });
+export const env = schema.parse({ AI_PROVIDER: process.env.AI_PROVIDER, OPENAI_API_KEY: process.env.OPENAI_API_KEY, OPENAI_DIAGNOSIS_MODEL: process.env.OPENAI_DIAGNOSIS_MODEL });
 ```
 
 `.env.example`:
 
 ```dotenv
-APP_DEMO_MODE=true
-ANTHROPIC_API_KEY=
-ANTHROPIC_DIAGNOSIS_MODEL=claude-opus-4-8
+AI_PROVIDER=demo
+OPENAI_API_KEY=
+OPENAI_DIAGNOSIS_MODEL=gpt-5.6-terra
 ```
 
-模式规则：`APP_DEMO_MODE=true` 明确使用 Demo provider；`false` 时缺少 `ANTHROPIC_API_KEY` 必须返回配置错误，不能自动回退到演示结果。
+模式规则：`AI_PROVIDER=demo` 明确使用 Demo provider；`openai` 时缺少 `OPENAI_API_KEY` 必须返回配置错误，不能自动回退到演示结果。
 
 - [ ] **Step 7: 运行测试和类型检查**
 
@@ -1006,8 +1006,9 @@ Expected: FAIL，诊断页不存在。
 
 ```ts
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
 import { applicationAnswersSchema } from "@/features/application/application.schema";
-import { AnthropicDiagnosisProvider } from "@/features/diagnosis/anthropic-diagnosis-provider";
+import { OpenAIDiagnosisProvider } from "@/features/diagnosis/openai-diagnosis-provider";
 import { createDiagnosis } from "@/features/diagnosis/create-diagnosis";
 import { DemoDiagnosisProvider } from "@/features/diagnosis/demo-diagnosis-provider";
 import { env } from "@/lib/env";
@@ -1015,8 +1016,8 @@ import { env } from "@/lib/env";
 export async function POST(request: Request) {
   const parsed = applicationAnswersSchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ code: "INVALID_APPLICATION", issues: parsed.error.issues }, { status: 400 });
-  if (env.APP_DEMO_MODE === "false" && !env.ANTHROPIC_API_KEY) return NextResponse.json({ code: "AI_NOT_CONFIGURED" }, { status: 503 });
-  const provider = env.APP_DEMO_MODE === "true" ? new DemoDiagnosisProvider() : new AnthropicDiagnosisProvider();
+  if (env.AI_PROVIDER === "openai" && !env.OPENAI_API_KEY) return NextResponse.json({ code: "AI_NOT_CONFIGURED" }, { status: 503 });
+  const provider = env.AI_PROVIDER === "demo" ? new DemoDiagnosisProvider() : new OpenAIDiagnosisProvider(new OpenAI({ apiKey: env.OPENAI_API_KEY }), env.OPENAI_DIAGNOSIS_MODEL);
   try { return NextResponse.json(await createDiagnosis(parsed.data, provider)); }
   catch (error) { console.error("diagnosis failed", error); return NextResponse.json({ code: "DIAGNOSIS_UNAVAILABLE" }, { status: 502 }); }
 }
@@ -1353,7 +1354,7 @@ README 必须包含：
 
 1. `npm install`
 2. `Copy-Item .env.example .env.local`
-3. 演示模式保持 `APP_DEMO_MODE=true`
+3. 演示模式保持 `AI_PROVIDER=demo`
 4. `npm run dev`
 5. 打开 `http://localhost:3000`
 
@@ -1361,9 +1362,9 @@ README 必须包含：
 
 在 `.env.local` 设置：
 
-- `APP_DEMO_MODE=false`
-- `ANTHROPIC_API_KEY=...`
-- `ANTHROPIC_DIAGNOSIS_MODEL=claude-opus-4-8`
+- `AI_PROVIDER=openai`
+- `OPENAI_API_KEY=...`
+- `OPENAI_DIAGNOSIS_MODEL=gpt-5.6-terra`
 
 ## 验证
 

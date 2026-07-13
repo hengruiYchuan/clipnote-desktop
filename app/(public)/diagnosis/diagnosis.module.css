@@ -1,0 +1,332 @@
+.statusPanel {
+  display: flex;
+  min-height: calc(100svh - 3.5rem);
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(4rem, 9vw, 9rem) 5vw;
+}
+
+.statusPanel > p:first-child,
+.sheetHeader p,
+.sheet section > span,
+.sheet section > div > span,
+.flow header span,
+.demoNotice,
+.editorNote > span,
+.sheetFooter {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0;
+}
+
+.statusPanel h1 {
+  max-width: 14ch;
+  margin: 1.5rem 0;
+  font-size: clamp(3rem, 7vw, 7rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.statusPanel > p:not(:first-child) {
+  max-width: 38rem;
+  color: var(--ink-muted);
+  line-height: 1.8;
+}
+
+.statusPanel a,
+.statusPanel button {
+  width: fit-content;
+  margin-top: 2rem;
+  padding: 0.8rem 0;
+  border: 0;
+  border-bottom: 2px solid var(--proof-red);
+  background: transparent;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sheet {
+  border-bottom: 1px solid var(--ink);
+}
+
+.sheetHeader {
+  display: grid;
+  grid-template-columns: 1.4fr 0.6fr;
+  min-height: 32rem;
+  border-bottom: 1px solid var(--ink);
+}
+
+.sheetHeader > div:first-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(3rem, 7vw, 7rem) 5vw;
+}
+
+.sheetHeader p {
+  margin: 0;
+}
+
+.sheetHeader h1 {
+  max-width: 8ch;
+  margin: 0;
+  font-size: clamp(4.5rem, 11vw, 11rem);
+  line-height: 0.85;
+  letter-spacing: 0;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem;
+  border-left: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-bright);
+  text-align: center;
+}
+
+.verdict span,
+.verdict small {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.verdict strong {
+  margin: 1rem 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: clamp(4rem, 9vw, 9rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.demoNotice {
+  margin: 0;
+  padding: 0.8rem 5vw;
+  border-bottom: 1px solid var(--ink);
+  background: var(--acid-note);
+  color: var(--ink);
+}
+
+.statement,
+.twoColumn,
+.flow,
+.editorNote,
+.sheetFooter {
+  border-bottom: 1px solid var(--ink);
+}
+
+.statement {
+  display: grid;
+  grid-template-columns: 0.4fr 1.6fr;
+  gap: 3rem;
+  padding: clamp(4rem, 8vw, 8rem) 5vw;
+}
+
+.statement h2,
+.twoColumn h2,
+.flow h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.statement p {
+  max-width: 26ch;
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 4rem);
+  line-height: 1.35;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.twoColumn > div {
+  min-width: 0;
+  min-height: 24rem;
+  padding: clamp(3rem, 6vw, 6rem) 5vw;
+}
+
+.twoColumn > div:first-child {
+  border-right: 1px solid var(--ink);
+}
+
+.twoColumn p,
+.cutList li {
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.flow {
+  padding: clamp(4rem, 8vw, 8rem) 5vw;
+}
+
+.flow header {
+  display: grid;
+  grid-template-columns: 0.4fr 1.6fr;
+  gap: 3rem;
+  margin-bottom: 3rem;
+}
+
+.flow ol {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ink);
+  list-style: none;
+}
+
+.flow li {
+  min-height: 16rem;
+  padding: 1.5rem;
+  border-right: 1px solid var(--ink);
+}
+
+.flow li:last-child {
+  border-right: 0;
+}
+
+.flow li > span {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.flow li p {
+  margin-top: 5rem;
+  line-height: 1.7;
+}
+
+.aiNote {
+  background: var(--editor-blue);
+  color: white;
+}
+
+.aiNote > span {
+  color: white !important;
+}
+
+.cutList ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.cutList li::marker {
+  color: var(--proof-red);
+}
+
+.editorNote {
+  padding: clamp(4rem, 8vw, 8rem) 5vw;
+  background-color: var(--paper-bright);
+  background-image: linear-gradient(var(--rule) 1px, transparent 1px);
+  background-size: 100% 2rem;
+}
+
+.editorNote blockquote {
+  max-width: 24ch;
+  margin: 2rem 0 4rem;
+  font-size: clamp(2rem, 4.5vw, 4.8rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.editorNote p {
+  max-width: 46rem;
+  line-height: 1.8;
+}
+
+.sheetFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem 5vw;
+  color: var(--ink);
+}
+
+.sheetFooter a {
+  color: var(--proof-red);
+}
+
+.sheetFooter p {
+  margin: 0;
+}
+
+@media (max-width: 47.5rem) {
+  .sheetHeader,
+  .statement,
+  .twoColumn,
+  .flow header {
+    grid-template-columns: 1fr;
+  }
+
+  .sheetHeader {
+    min-height: auto;
+  }
+
+  .sheetHeader > div:first-child {
+    min-height: 25rem;
+    padding-inline: 1rem;
+  }
+
+  .sheetHeader h1 {
+    font-size: clamp(4rem, 22vw, 7rem);
+  }
+
+  .verdict {
+    min-height: 18rem;
+    border-top: 1px solid var(--ink);
+    border-left: 0;
+  }
+
+  .demoNotice,
+  .statement,
+  .flow,
+  .editorNote,
+  .sheetFooter {
+    padding-inline: 1rem;
+  }
+
+  .twoColumn > div {
+    min-height: auto;
+    padding: 3rem 1rem;
+  }
+
+  .twoColumn > div:first-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .flow ol {
+    grid-template-columns: 1fr;
+  }
+
+  .flow li {
+    min-height: 10rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .flow li:last-child {
+    border-bottom: 0;
+  }
+
+  .flow li p {
+    margin-top: 2rem;
+  }
+
+  .sheetFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -1,3 +1,4 @@
+import { applicationDraftSchema } from "./application.schema";
 import type { ApplicationDraft } from "./application.types";
 
 const KEY = "wei-ding-gao:application:v1";
@@ -11,11 +12,14 @@ export function loadApplicationDraft(): ApplicationDraft | null {
   if (!value) return null;
 
   try {
-    return JSON.parse(value) as ApplicationDraft;
+    const parsed = applicationDraftSchema.safeParse(JSON.parse(value));
+    if (parsed.success) return parsed.data;
   } catch {
-    sessionStorage.removeItem(KEY);
-    return null;
+    // Invalid local data is cleared below.
   }
+
+  sessionStorage.removeItem(KEY);
+  return null;
 }
 
 export function clearApplicationDraft() {

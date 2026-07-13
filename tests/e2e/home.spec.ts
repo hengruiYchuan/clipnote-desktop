@@ -12,4 +12,5 @@ test("品牌首页清楚呈现驻留价值并进入申请", async ({ page }) => 
   await expect(applicationLink).toHaveAttribute("href", "/apply");
   await applicationLink.click();
   await expect(page).toHaveURL(/\/apply$/);
+  await expect(page.getByRole("heading", { name: /从一个真实时刻开始/ })).toBeVisible();
 });
