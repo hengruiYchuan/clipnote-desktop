@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "scaffold",
+  "productName": "ClipNote",
   "version": "0.1.0",
   "identifier": "com.clipnote.desktop",
   "build": {
@@ -12,9 +12,17 @@
   "app": {
     "windows": [
       {
-        "title": "scaffold",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "ClipNote",
+        "width": 112,
+        "height": 322,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true
       }
     ],
     "security": {
