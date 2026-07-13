@@ -1,1 +1,31 @@
-/* Editorial Desk design tokens are defined in Task 3. */
+:root {
+  color-scheme: light;
+  --paper-canvas: #ece5da;
+  --paper-sheet: #fffdf8;
+  --paper-raised: #f7f1e8;
+  --paper-note: #f3c969;
+  --paper-mint: #b9d7cd;
+  --ink-strong: #26231f;
+  --ink-body: #4f4941;
+  --ink-muted: #74695d;
+  --rule: #d7cec1;
+  --accent: #df6747;
+  --accent-deep: #a94531;
+  --focus: #2f6f68;
+  --shadow-ink: rgb(38 35 31 / 18%);
+  --font-editorial: "Newsreader Variable", Georgia, serif;
+  --font-ui: "Instrument Sans Variable", "Segoe UI", sans-serif;
+  --font-code: "IBM Plex Mono", Consolas, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --ease-paper: cubic-bezier(.22, 1, .36, 1);
+  --duration-fast: 140ms;
+  --duration-shell: 360ms;
+}

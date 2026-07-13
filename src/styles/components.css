@@ -1,0 +1,30 @@
+.icon-button {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    transform var(--duration-fast) var(--ease-paper);
+}
+
+.icon-button:hover {
+  border-color: var(--rule);
+  background: var(--paper-raised);
+  transform: translateY(-1px);
+}
+
+.icon-button:active {
+  transform: translateY(0);
+}
+
+.icon-button > svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.7;
+}
