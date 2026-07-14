@@ -14,6 +14,11 @@ const bridge = vi.hoisted(() => ({
   setCapturePaused: vi.fn(),
   getAutostartEnabled: vi.fn(),
   setAutostartEnabled: vi.fn(),
+  listPets: vi.fn(),
+  getSelectedPet: vi.fn(),
+  selectPet: vi.fn(),
+  importPet: vi.fn(),
+  deletePet: vi.fn(),
   setClipFavorite: vi.fn(),
   copyClip: vi.fn(),
   deleteClip: vi.fn(),
@@ -43,6 +48,20 @@ beforeEach(() => {
   bridge.setCapturePaused.mockResolvedValue(undefined);
   bridge.getAutostartEnabled.mockResolvedValue(false);
   bridge.setAutostartEnabled.mockResolvedValue(undefined);
+  bridge.listPets.mockResolvedValue([
+    {
+      id: "clipnote",
+      name: "纸片夹精灵",
+      author: "ClipNote",
+      description: "默认桌宠",
+      previewDataUrl: "",
+      builtIn: true,
+    },
+  ]);
+  bridge.getSelectedPet.mockResolvedValue(null);
+  bridge.selectPet.mockResolvedValue(undefined);
+  bridge.importPet.mockResolvedValue(null);
+  bridge.deletePet.mockResolvedValue(undefined);
 });
 
 describe("App", () => {
@@ -89,6 +108,17 @@ describe("App", () => {
     await user.click(toggle);
 
     await waitFor(() => expect(bridge.setAutostartEnabled).toHaveBeenCalledWith(true));
+  });
+
+  it("shows the pet gallery and keeps the built-in pet selected", async () => {
+    useShellStore.setState({ mode: "expanded", section: "settings" });
+    render(<App />);
+
+    expect(await screen.findByRole("radiogroup", { name: "桌宠形象" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /纸片夹精灵/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   it("updates capture state through the native bridge", async () => {

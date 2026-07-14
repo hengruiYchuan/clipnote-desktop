@@ -1,4 +1,5 @@
 mod data;
+mod pets;
 mod shortcuts;
 mod tray;
 mod window;
@@ -10,6 +11,7 @@ pub fn run() {
     let position_sender = window::start_position_tracking();
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .on_window_event(move |window, event| {
             if window.label() != "main" {
                 return;
@@ -27,7 +29,9 @@ pub fn run() {
         })
         .setup(|app| {
             let data_state = data::initialize(app.handle()).map_err(std::io::Error::other)?;
+            let pet_state = pets::initialize(app.handle()).map_err(std::io::Error::other)?;
             app.manage(data_state);
+            app.manage(pet_state);
             tray::install(app)?;
             shortcuts::install(app)?;
             window::collapse_main_window(app.handle().clone())?;
@@ -45,6 +49,11 @@ pub fn run() {
             data::create_note,
             data::update_note,
             data::delete_note,
+            pets::list_pets,
+            pets::get_selected_pet,
+            pets::select_pet,
+            pets::import_pet,
+            pets::delete_pet,
             window::get_main_window_mode,
             window::expand_main_window,
             window::collapse_main_window,

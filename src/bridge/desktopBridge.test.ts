@@ -5,6 +5,7 @@ const listen = vi.fn();
 const enableAutostart = vi.fn();
 const disableAutostart = vi.fn();
 const isAutostartEnabled = vi.fn();
+const openDialog = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen }));
 vi.mock("@tauri-apps/plugin-autostart", () => ({
@@ -12,6 +13,7 @@ vi.mock("@tauri-apps/plugin-autostart", () => ({
   disable: disableAutostart,
   isEnabled: isAutostartEnabled,
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openDialog }));
 
 describe("desktop bridge", () => {
   beforeEach(() => {
@@ -21,6 +23,7 @@ describe("desktop bridge", () => {
     enableAutostart.mockReset();
     disableAutostart.mockReset();
     isAutostartEnabled.mockReset();
+    openDialog.mockReset();
   });
 
   it("invokes the native expand command inside Tauri", async () => {
@@ -122,5 +125,21 @@ describe("desktop bridge", () => {
 
     expect(isAutostartEnabled).toHaveBeenCalledOnce();
     expect(enableAutostart).toHaveBeenCalledOnce();
+  });
+
+  it("imports a selected pet manifest through the native dialog", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    openDialog.mockResolvedValue("C:\\Pets\\mint-bot\\pet.json");
+    invoke.mockResolvedValue({ id: "mint-bot" });
+    const { desktopBridge } = await import("./desktopBridge");
+
+    await desktopBridge.importPet();
+
+    expect(invoke).toHaveBeenCalledWith("import_pet", {
+      manifestPath: "C:\\Pets\\mint-bot\\pet.json",
+    });
   });
 });

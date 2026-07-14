@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { desktopBridge } from "../bridge/desktopBridge";
 import { LibraryPanel } from "../features/library/LibraryPanel";
 import { NotesPanel } from "../features/notes/NotesPanel";
+import type { PetDefinition, PetSummary, PetVisualState } from "../features/pets/types";
 import { SettingsPanel } from "../features/settings/SettingsPanel";
 import {
   readClipPreferences,
@@ -24,6 +25,9 @@ export function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [paused, setPaused] = useState(false);
   const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [pets, setPets] = useState<PetSummary[]>([]);
+  const [selectedPet, setSelectedPet] = useState<PetDefinition | null>(null);
+  const [petActivity, setPetActivity] = useState<PetVisualState>("idle");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
@@ -31,6 +35,7 @@ export function App() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [preferences, setPreferences] = useState(readClipPreferences);
   const messageTimer = useRef<number | null>(null);
+  const petTimer = useRef<number | null>(null);
 
   const showMessage = useCallback((text: string, error = false) => {
     if (messageTimer.current) window.clearTimeout(messageTimer.current);
@@ -49,6 +54,15 @@ export function App() {
     setNotes(await desktopBridge.listNotes());
   }, []);
 
+  const loadPets = useCallback(async () => {
+    const [nextPets, nextSelectedPet] = await Promise.all([
+      desktopBridge.listPets(),
+      desktopBridge.getSelectedPet(),
+    ]);
+    setPets(nextPets);
+    setSelectedPet(nextSelectedPet);
+  }, []);
+
   useEffect(() => {
     writeClipPreferences(preferences);
   }, [preferences]);
@@ -62,7 +76,12 @@ export function App() {
           if (mounted) setMode(nextMode);
         }),
         desktopBridge.onClipsChanged(() => {
-          if (mounted) void loadClips().catch((error) => showMessage(toMessage(error), true));
+          if (mounted) {
+            setPetActivity("captured");
+            if (petTimer.current) window.clearTimeout(petTimer.current);
+            petTimer.current = window.setTimeout(() => setPetActivity("idle"), 1800);
+            void loadClips().catch((error) => showMessage(toMessage(error), true));
+          }
         }),
         desktopBridge.onCaptureStateChanged((capturePaused) => {
           if (mounted) setPaused(capturePaused);
@@ -77,13 +96,24 @@ export function App() {
       desktopBridge.listNotes(),
       desktopBridge.getCapturePaused(),
       desktopBridge.getAutostartEnabled(),
+      desktopBridge.listPets(),
+      desktopBridge.getSelectedPet(),
     ])
-      .then(([nextClips, nextNotes, capturePaused, nextAutostartEnabled]) => {
+      .then(([
+        nextClips,
+        nextNotes,
+        capturePaused,
+        nextAutostartEnabled,
+        nextPets,
+        nextSelectedPet,
+      ]) => {
         if (!mounted) return;
         setClips(nextClips);
         setNotes(nextNotes);
         setPaused(capturePaused);
         setAutostartEnabled(nextAutostartEnabled);
+        setPets(nextPets);
+        setSelectedPet(nextSelectedPet);
       })
       .catch((error) => showMessage(toMessage(error), true))
       .finally(() => {
@@ -95,6 +125,7 @@ export function App() {
       mounted = false;
       disposers.forEach((dispose) => dispose());
       if (messageTimer.current) window.clearTimeout(messageTimer.current);
+      if (petTimer.current) window.clearTimeout(petTimer.current);
     };
   }, [loadClips, setMode, showMessage]);
 
@@ -133,7 +164,7 @@ export function App() {
   };
 
   if (mode === "collapsed") {
-    return <EdgeTab paused={paused} />;
+    return <EdgeTab paused={paused} pet={selectedPet} activity={petActivity} />;
   }
 
   return (
@@ -181,7 +212,35 @@ export function App() {
           autostartEnabled={autostartEnabled}
           busy={busy}
           preferences={preferences}
+          pets={pets}
+          selectedPetId={selectedPet?.id ?? "clipnote"}
           onChangePreferences={setPreferences}
+          onSelectPet={(id) => {
+            void run(
+              () => desktopBridge.selectPet(id),
+              "桌宠已切换",
+              loadPets,
+            );
+          }}
+          onImportPet={() => {
+            void (async () => {
+              setBusy(true);
+              try {
+                const imported = await desktopBridge.importPet();
+                if (!imported) return;
+                await desktopBridge.selectPet(imported.id);
+                await loadPets();
+                showMessage("桌宠已导入并启用");
+              } catch (error) {
+                showMessage(toMessage(error), true);
+              } finally {
+                setBusy(false);
+              }
+            })();
+          }}
+          onDeletePet={(id) => {
+            void run(() => desktopBridge.deletePet(id), "桌宠已删除", loadPets);
+          }}
           onToggleAutostart={() => {
             const nextEnabled = !autostartEnabled;
             void run(

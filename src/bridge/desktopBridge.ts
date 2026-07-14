@@ -1,11 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   disable as disableAutostart,
   enable as enableAutostart,
   isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
 import type { ShellMode } from "../features/shell/useShellStore";
+import { builtinPet, type PetDefinition, type PetSummary } from "../features/pets/types";
 import type { ClipItem, Note, NoteInput } from "../types/content";
 
 declare global {
@@ -31,6 +33,7 @@ type BrowserState = {
 
 const browserStorageKey = "clipnote-browser-data-v1";
 const browserAutostartKey = "clipnote-browser-autostart-v1";
+const browserSelectedPetKey = "clipnote-browser-selected-pet-v1";
 const browserListeners = {
   clips: new Set<() => void>(),
   capture: new Set<(paused: boolean) => void>(),
@@ -96,6 +99,25 @@ export const desktopBridge = {
     }
     window.localStorage.setItem(browserAutostartKey, String(enabled));
   },
+  listPets: () => invokeOr<PetSummary[]>("list_pets", undefined, () => [builtinPet]),
+  getSelectedPet: () =>
+    invokeOr<PetDefinition | null>("get_selected_pet", undefined, () => null),
+  selectPet: (id: string) =>
+    invokeOr<void>("select_pet", { id }, () => {
+      if (id !== builtinPet.id) throw new Error("浏览器预览只提供默认桌宠");
+      window.localStorage.setItem(browserSelectedPetKey, id);
+    }),
+  importPet: async () => {
+    if (!isTauri()) return null;
+    const manifestPath = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "ClipNote 宠物包", extensions: ["json"] }],
+    });
+    if (typeof manifestPath !== "string") return null;
+    return invoke<PetSummary>("import_pet", { manifestPath });
+  },
+  deletePet: (id: string) => invokeOr<void>("delete_pet", { id }, () => undefined),
   onModeChanged: async (
     handler: (mode: ShellMode) => void,
   ): Promise<UnlistenFn> => {

@@ -21,6 +21,11 @@ vi.mock("../../bridge/desktopBridge", () => ({
     setCapturePaused: vi.fn(),
     getAutostartEnabled: vi.fn(),
     setAutostartEnabled: vi.fn(),
+    listPets: vi.fn(),
+    getSelectedPet: vi.fn(),
+    selectPet: vi.fn(),
+    importPet: vi.fn(),
+    deletePet: vi.fn(),
   },
 }));
 
@@ -38,6 +43,20 @@ beforeEach(() => {
   vi.mocked(desktopBridge.getCapturePaused).mockResolvedValue(false);
   vi.mocked(desktopBridge.getAutostartEnabled).mockResolvedValue(false);
   vi.mocked(desktopBridge.setAutostartEnabled).mockResolvedValue();
+  vi.mocked(desktopBridge.listPets).mockResolvedValue([
+    {
+      id: "clipnote",
+      name: "纸片夹精灵",
+      author: "ClipNote",
+      description: "默认桌宠",
+      previewDataUrl: "",
+      builtIn: true,
+    },
+  ]);
+  vi.mocked(desktopBridge.getSelectedPet).mockResolvedValue(null);
+  vi.mocked(desktopBridge.selectPet).mockResolvedValue();
+  vi.mocked(desktopBridge.importPet).mockResolvedValue(null);
+  vi.mocked(desktopBridge.deletePet).mockResolvedValue();
 });
 
 describe("desktop shell", () => {

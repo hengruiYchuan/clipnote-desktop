@@ -1,4 +1,6 @@
 import { Database, Eye, Power, ScanText } from "lucide-react";
+import { PetSettings } from "../pets/PetSettings";
+import type { PetSummary } from "../pets/types";
 import type { ClipPreferences, PreviewLines } from "./preferences";
 
 const lineOptions: PreviewLines[] = [4, 6, 8];
@@ -8,17 +10,27 @@ export function SettingsPanel({
   autostartEnabled,
   busy,
   preferences,
+  pets,
+  selectedPetId,
   onToggleCapture,
   onToggleAutostart,
   onChangePreferences,
+  onSelectPet,
+  onImportPet,
+  onDeletePet,
 }: {
   paused: boolean;
   autostartEnabled: boolean;
   busy: boolean;
   preferences: ClipPreferences;
+  pets: PetSummary[];
+  selectedPetId: string;
   onToggleCapture: () => void;
   onToggleAutostart: () => void;
   onChangePreferences: (preferences: ClipPreferences) => void;
+  onSelectPet: (id: string) => void;
+  onImportPet: () => void;
+  onDeletePet: (id: string) => void;
 }) {
   return (
     <section className="settings-panel" aria-labelledby="settings-title">
@@ -63,6 +75,18 @@ export function SettingsPanel({
           />
           <span className="setting-switch" aria-hidden="true" />
         </label>
+      </div>
+
+      <div className="settings-panel__section">
+        <h3>桌宠</h3>
+        <PetSettings
+          pets={pets}
+          selectedPetId={selectedPetId}
+          busy={busy}
+          onSelect={onSelectPet}
+          onImport={onImportPet}
+          onDelete={onDeletePet}
+        />
       </div>
 
       <div className="settings-panel__section">
