@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import { useShellStore, type ShellSection } from "./useShellStore";
 
 const tabs: { id: ShellSection; label: string }[] = [
@@ -22,6 +23,16 @@ export function ContentTabs() {
           {tab.label}
         </button>
       ))}
+      <button
+        className="content-tabs__settings"
+        type="button"
+        aria-label="设置"
+        title="设置"
+        aria-current={section === "settings" ? "page" : undefined}
+        onClick={() => setSection("settings")}
+      >
+        <Settings aria-hidden="true" />
+      </button>
     </nav>
   );
 }

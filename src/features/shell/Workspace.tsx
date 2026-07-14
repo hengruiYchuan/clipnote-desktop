@@ -20,12 +20,13 @@ export function Workspace({
 }) {
   const collapse = useShellStore((state) => state.collapse);
   const query = useShellStore((state) => state.query);
+  const section = useShellStore((state) => state.section);
   const setQuery = useShellStore((state) => state.setQuery);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
+    if (section !== "settings") searchRef.current?.focus();
+  }, [section]);
 
   useEffect(() => {
     const onKeyDown = async (event: KeyboardEvent) => {
@@ -64,17 +65,19 @@ export function Workspace({
           <ChevronRight aria-hidden="true" />
         </IconButton>
       </header>
-      <label className="workspace__search">
-        <Search aria-hidden="true" />
-        <input
-          ref={searchRef}
-          type="search"
-          aria-label="搜索工作碎片"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索剪贴板和便签…"
-        />
-      </label>
+      {section !== "settings" && (
+        <label className="workspace__search">
+          <Search aria-hidden="true" />
+          <input
+            ref={searchRef}
+            type="search"
+            aria-label="搜索工作碎片"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索剪贴板和便签…"
+          />
+        </label>
+      )}
       {message && (
         <div
           className="workspace__message"

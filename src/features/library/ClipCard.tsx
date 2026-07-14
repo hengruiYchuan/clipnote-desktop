@@ -1,4 +1,15 @@
-import { Code2, Copy, FileText, Folder, Link2, Star, Trash2 } from "lucide-react";
+import { useState, type CSSProperties } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Code2,
+  Copy,
+  FileText,
+  Folder,
+  Link2,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { IconButton } from "../../components/IconButton";
 import type { ClipItem } from "../../types/content";
@@ -16,14 +27,20 @@ export function ClipCard({
   onFavorite,
   onDelete,
   busy,
+  collapseLongClips,
+  previewLines,
 }: {
   item: ClipItem;
   onCopy: (item: ClipItem) => void;
   onFavorite: (item: ClipItem) => void;
   onDelete: (item: ClipItem) => void;
   busy: boolean;
+  collapseLongClips: boolean;
+  previewLines: 4 | 6 | 8;
 }) {
   const KindIcon = kindIcon[item.kind];
+  const [expanded, setExpanded] = useState(false);
+  const collapsible = collapseLongClips && shouldCollapse(item.preview, previewLines);
 
   return (
     <motion.article className="clip-card" data-kind={item.kind} layout whileHover={{ y: -2 }}>
@@ -36,7 +53,24 @@ export function ClipCard({
         </time>
       </div>
       <h3>{item.title}</h3>
-      <pre>{item.preview}</pre>
+      <pre
+        className="clip-card__preview"
+        data-collapsed={collapsible && !expanded ? "true" : undefined}
+        style={{ "--clip-preview-lines": previewLines } as CSSProperties}
+      >
+        {item.preview}
+      </pre>
+      {collapsible && (
+        <button
+          className="clip-card__preview-toggle"
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+          {expanded ? "收起全文" : "展开全文"}
+        </button>
+      )}
       <div className="clip-card__actions">
         <span>使用 {item.useCount} 次</span>
         <IconButton
@@ -64,6 +98,10 @@ export function ClipCard({
       </div>
     </motion.article>
   );
+}
+
+function shouldCollapse(preview: string, previewLines: number) {
+  return preview.length > 180 || preview.split(/\r?\n/).length > previewLines;
 }
 
 function formatRelativeTime(timestamp: number) {

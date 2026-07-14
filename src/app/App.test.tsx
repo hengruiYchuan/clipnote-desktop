@@ -27,6 +27,7 @@ import { useShellStore } from "../features/shell/useShellStore";
 import { App } from "./App";
 
 beforeEach(() => {
+  window.localStorage.clear();
   useShellStore.setState({ mode: "collapsed", section: "recent", query: "" });
   vi.clearAllMocks();
   bridge.expand.mockResolvedValue(undefined);
@@ -59,6 +60,20 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: sampleNote.title })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "最近" }));
     expect(screen.getByText(sampleClip.title)).toBeVisible();
+  });
+
+  it("opens settings and persists clipboard preview preferences", async () => {
+    useShellStore.setState({ mode: "expanded" });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "设置" }));
+    expect(screen.getByRole("heading", { name: "设置" })).toBeVisible();
+
+    await user.click(screen.getByRole("radio", { name: "4 行" }));
+    expect(window.localStorage.getItem("clipnote.preferences.v1")).toContain(
+      '"previewLines":4',
+    );
   });
 
   it("updates capture state through the native bridge", async () => {

@@ -38,6 +38,53 @@ test("toggles capture state from the workspace", async ({ page }) => {
   await expect(page.getByRole("button", { name: "恢复剪贴板采集" })).toBeVisible();
 });
 
+test("visually folds long clipboard text and exposes settings", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "clipnote-browser-data-v1",
+      JSON.stringify({
+        clips: [
+          {
+            id: 1,
+            kind: "text",
+            source: "系统剪贴板",
+            capturedAt: Math.floor(Date.now() / 1000),
+            title: "长文本检查",
+            preview: Array.from(
+              { length: 12 },
+              (_, index) => `第 ${index + 1} 行用于检查真实折叠高度`,
+            ).join("\n"),
+            favorite: false,
+            useCount: 0,
+          },
+        ],
+        notes: [],
+        paused: false,
+      }),
+    );
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开 ClipNote 工作台" }).click();
+
+  const preview = page.locator(".clip-card__preview");
+  const collapsedHeight = await preview.evaluate((element) => element.getBoundingClientRect().height);
+  await expect(page).toHaveScreenshot("long-clip-collapsed.png", {
+    animations: "disabled",
+  });
+  await page.getByRole("button", { name: "展开全文" }).click();
+  const expandedHeight = await preview.evaluate((element) => element.getBoundingClientRect().height);
+  expect(expandedHeight).toBeGreaterThan(collapsedHeight);
+
+  await page.getByRole("button", { name: "设置" }).click();
+  await expect(page.getByRole("heading", { name: "设置" })).toBeVisible();
+  await expect(page).toHaveScreenshot("settings-panel.png", {
+    animations: "disabled",
+  });
+  await page.getByRole("radio", { name: "4 行" }).check();
+  await expect(page.getByRole("radio", { name: "4 行" })).toBeChecked();
+});
+
 test("matches the real collapsed and expanded window compositions", async ({ page }) => {
   await page.setViewportSize({ width: 56, height: 56 });
   await page.goto("/");

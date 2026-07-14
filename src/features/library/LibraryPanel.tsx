@@ -8,12 +8,16 @@ export function LibraryPanel({
   onFavorite,
   onDelete,
   busy,
+  collapseLongClips = true,
+  previewLines = 6,
 }: {
   items: ClipItem[];
   onCopy: (item: ClipItem) => void;
   onFavorite: (item: ClipItem) => void;
   onDelete: (item: ClipItem) => void;
   busy: boolean;
+  collapseLongClips?: boolean;
+  previewLines?: 4 | 6 | 8;
 }) {
   const query = useShellStore((state) => state.query.trim().toLocaleLowerCase());
   const section = useShellStore((state) => state.section);
@@ -35,6 +39,8 @@ export function LibraryPanel({
             onFavorite={onFavorite}
             onDelete={onDelete}
             busy={busy}
+            collapseLongClips={collapseLongClips}
+            previewLines={previewLines}
           />
         ))}
       </div>

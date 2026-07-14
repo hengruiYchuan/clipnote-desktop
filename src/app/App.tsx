@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { desktopBridge } from "../bridge/desktopBridge";
 import { LibraryPanel } from "../features/library/LibraryPanel";
 import { NotesPanel } from "../features/notes/NotesPanel";
+import { SettingsPanel } from "../features/settings/SettingsPanel";
+import {
+  readClipPreferences,
+  writeClipPreferences,
+} from "../features/settings/preferences";
 import { ContentTabs } from "../features/shell/ContentTabs";
 import { EdgeTab } from "../features/shell/EdgeTab";
 import { Workspace } from "../features/shell/Workspace";
@@ -23,6 +28,7 @@ export function App() {
   const [message, setMessage] = useState<Message | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [preferences, setPreferences] = useState(readClipPreferences);
   const messageTimer = useRef<number | null>(null);
 
   const showMessage = useCallback((text: string, error = false) => {
@@ -41,6 +47,10 @@ export function App() {
   const loadNotes = useCallback(async () => {
     setNotes(await desktopBridge.listNotes());
   }, []);
+
+  useEffect(() => {
+    writeClipPreferences(preferences);
+  }, [preferences]);
 
   useEffect(() => {
     let mounted = true;
@@ -162,10 +172,26 @@ export function App() {
             await run(() => desktopBridge.deleteNote(note.id), "便签已删除", loadNotes);
           }}
         />
+      ) : section === "settings" ? (
+        <SettingsPanel
+          paused={paused}
+          busy={busy}
+          preferences={preferences}
+          onChangePreferences={setPreferences}
+          onToggleCapture={() => {
+            void run(
+              () => desktopBridge.setCapturePaused(!paused),
+              paused ? "剪贴板采集已恢复" : "剪贴板采集已暂停",
+              async () => setPaused(!paused),
+            );
+          }}
+        />
       ) : (
         <LibraryPanel
           items={clips}
           busy={busy}
+          collapseLongClips={preferences.collapseLongClips}
+          previewLines={preferences.previewLines}
           onCopy={(item) => {
             void run(() => desktopBridge.copyClip(item.id), "已复制到剪贴板", loadClips);
           }}
