@@ -18,6 +18,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+arboard = { version = "3.6.1", default-features = false }
+rusqlite = { version = "0.37.0", features = ["bundled"] }
 tauri = { version = "2.11.5", features = ["tray-icon"] }
 tauri-plugin-global-shortcut = "2.3.2"
 serde = { version = "1.0.228", features = ["derive"] }

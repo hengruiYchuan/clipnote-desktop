@@ -1,12 +1,12 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    App, Emitter,
+    App,
 };
 
 pub fn install(app: &mut App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "打开 ClipNote", true, None::<&str>)?;
-    let pause = MenuItem::with_id(app, "pause", "暂停采集", true, None::<&str>)?;
+    let pause = MenuItem::with_id(app, "pause", "暂停 / 恢复采集", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &pause, &quit])?;
 
@@ -18,7 +18,7 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
                 let _ = crate::window::expand_main_window(app.clone());
             }
             "pause" => {
-                let _ = app.emit("capture-state-changed", false);
+                let _ = crate::data::toggle_capture(app);
             }
             "quit" => app.exit(0),
             _ => {}

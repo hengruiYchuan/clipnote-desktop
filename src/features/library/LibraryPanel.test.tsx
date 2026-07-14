@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clipFixtures } from "../../app/fixtures";
+import { sampleClip } from "../../test/data";
 import { useShellStore } from "../shell/useShellStore";
 import { LibraryPanel } from "./LibraryPanel";
 
@@ -11,23 +11,40 @@ describe("LibraryPanel", () => {
   });
 
   it("filters by title, content, and source", () => {
-    render(<LibraryPanel items={clipFixtures} onCopy={vi.fn()} />);
+    renderPanel();
 
     act(() => useShellStore.getState().setQuery("Terminal"));
 
-    expect(screen.getByText("启动 Tauri 开发环境")).toBeVisible();
-    expect(screen.queryByText("MVP 产品决策")).not.toBeInTheDocument();
+    expect(screen.queryByText(sampleClip.title)).not.toBeInTheDocument();
+    act(() => useShellStore.getState().setQuery("tauri"));
+    expect(screen.getByText(sampleClip.title)).toBeVisible();
   });
 
-  it("copies a selected fragment from its explicit action", async () => {
+  it("exposes copy and favorite actions", async () => {
     const onCopy = vi.fn();
+    const onFavorite = vi.fn();
     const user = userEvent.setup();
-    render(<LibraryPanel items={clipFixtures} onCopy={onCopy} />);
+    renderPanel({ onCopy, onFavorite });
 
-    await user.click(
-      screen.getByRole("button", { name: "复制：启动 Tauri 开发环境" }),
-    );
+    await user.click(screen.getByRole("button", { name: `复制：${sampleClip.title}` }));
+    await user.click(screen.getByRole("button", { name: `收藏：${sampleClip.title}` }));
 
-    expect(onCopy).toHaveBeenCalledWith(clipFixtures[0]);
+    expect(onCopy).toHaveBeenCalledWith(sampleClip);
+    expect(onFavorite).toHaveBeenCalledWith(sampleClip);
   });
 });
+
+function renderPanel(
+  overrides: Partial<React.ComponentProps<typeof LibraryPanel>> = {},
+) {
+  return render(
+    <LibraryPanel
+      items={[sampleClip]}
+      onCopy={vi.fn()}
+      onFavorite={vi.fn()}
+      onDelete={vi.fn()}
+      busy={false}
+      {...overrides}
+    />,
+  );
+}

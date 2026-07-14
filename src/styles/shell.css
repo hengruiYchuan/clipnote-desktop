@@ -1,23 +1,23 @@
 .edge-tab {
   position: fixed;
-  right: 10px;
-  top: 50%;
+  inset: 0;
   width: 112px;
-  transform: translateY(-50%);
+  height: 322px;
   filter: drop-shadow(0 18px 28px var(--shadow-ink));
 }
 
 .edge-tab__open {
+  position: relative;
   width: 100%;
-  min-height: 286px;
+  height: 100%;
   border: 1px solid var(--rule);
   border-right: 5px solid var(--accent);
   border-radius: var(--radius-md) 2px 2px var(--radius-md);
   background: var(--paper-sheet);
   display: grid;
   justify-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-3);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3) 52px;
   cursor: pointer;
 }
 
@@ -31,16 +31,24 @@
 .edge-tab__tagline {
   writing-mode: vertical-rl;
   font-family: var(--font-editorial);
-  font-size: 17px;
-  letter-spacing: .04em;
+  font-size: 15px;
+  letter-spacing: 0;
 }
 
 .edge-tab__new {
   position: absolute;
-  right: 9px;
-  bottom: 9px;
+  z-index: 2;
+  right: 10px;
+  bottom: 10px;
   background: var(--paper-note);
   border-color: color-mix(in srgb, var(--paper-note), var(--ink-strong) 24%);
+}
+
+.edge-tab .status {
+  position: absolute;
+  left: 16px;
+  bottom: 25px;
+  font-size: 0;
 }
 
 .workspace {
@@ -67,9 +75,23 @@
   user-select: none;
 }
 
+.capture-toggle {
+  min-width: 104px;
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.capture-toggle:hover {
+  border-color: var(--rule);
+  background: var(--paper-raised);
+}
+
 .workspace__search {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
   margin: var(--space-5) var(--space-5) var(--space-3);
@@ -77,6 +99,26 @@
   border-radius: var(--radius-md);
   background: var(--paper-raised);
   padding: 0 var(--space-4);
+}
+
+.workspace__message {
+  position: absolute;
+  z-index: 20;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  max-width: min(360px, calc(100% - 48px));
+  border: 1px solid var(--focus);
+  border-radius: var(--radius-sm);
+  background: var(--paper-sheet);
+  padding: 10px 14px;
+  color: var(--ink-strong);
+  box-shadow: 4px 4px 0 var(--focus);
+  font-size: 13px;
+}
+
+.workspace__message[data-error] {
+  border-color: var(--accent-deep);
+  box-shadow: 4px 4px 0 var(--accent-deep);
 }
 
 .workspace__search > svg {
@@ -106,7 +148,7 @@
   font-family: var(--font-editorial);
   font-size: 22px;
   font-weight: 640;
-  letter-spacing: -.035em;
+  letter-spacing: 0;
 }
 
 .app-mark > span {

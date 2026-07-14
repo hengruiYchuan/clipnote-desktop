@@ -4,11 +4,20 @@ import { motion } from "motion/react";
 import { desktopBridge } from "../../bridge/desktopBridge";
 import { AppMark } from "../../components/AppMark";
 import { IconButton } from "../../components/IconButton";
-import { Kbd } from "../../components/Kbd";
 import { StatusDot } from "../../components/StatusDot";
 import { useShellStore } from "./useShellStore";
 
-export function Workspace({ children }: { children: ReactNode }) {
+export function Workspace({
+  children,
+  paused,
+  onToggleCapture,
+  message,
+}: {
+  children: ReactNode;
+  paused: boolean;
+  onToggleCapture: () => void;
+  message: { text: string; error: boolean } | null;
+}) {
   const collapse = useShellStore((state) => state.collapse);
   const query = useShellStore((state) => state.query);
   const setQuery = useShellStore((state) => state.setQuery);
@@ -43,7 +52,14 @@ export function Workspace({ children }: { children: ReactNode }) {
     >
       <header className="workspace__masthead" data-tauri-drag-region>
         <AppMark />
-        <StatusDot />
+        <button
+          className="capture-toggle"
+          type="button"
+          onClick={onToggleCapture}
+          aria-label={paused ? "恢复剪贴板采集" : "暂停剪贴板采集"}
+        >
+          <StatusDot paused={paused} />
+        </button>
         <IconButton label="收起工作台" onClick={close}>
           <ChevronRight aria-hidden="true" />
         </IconButton>
@@ -56,10 +72,18 @@ export function Workspace({ children }: { children: ReactNode }) {
           aria-label="搜索工作碎片"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索剪贴板、便签与命令…"
+          placeholder="搜索剪贴板和便签…"
         />
-        <Kbd>Esc</Kbd>
       </label>
+      {message && (
+        <div
+          className="workspace__message"
+          data-error={message.error || undefined}
+          role={message.error ? "alert" : "status"}
+        >
+          {message.text}
+        </div>
+      )}
       <div className="workspace__content">{children}</div>
     </motion.main>
   );

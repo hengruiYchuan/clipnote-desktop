@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
-  --paper-canvas: #ece5da;
-  --paper-sheet: #fffdf8;
-  --paper-raised: #f7f1e8;
-  --paper-note: #f3c969;
-  --paper-mint: #b9d7cd;
+  --paper-canvas: #e4e9e7;
+  --paper-sheet: #fbfcfa;
+  --paper-raised: #eef2ef;
+  --paper-note: #f4cd62;
+  --paper-mint: #b8d8ce;
   --ink-strong: #26231f;
   --ink-body: #4f4941;
   --ink-muted: #74695d;
-  --rule: #d7cec1;
+  --rule: #cdd5d1;
   --accent: #df6747;
   --accent-deep: #a94531;
   --focus: #2f6f68;
@@ -23,8 +23,8 @@
   --space-5: 24px;
   --space-6: 32px;
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
   --ease-paper: cubic-bezier(.22, 1, .36, 1);
   --duration-fast: 140ms;
   --duration-shell: 360ms;

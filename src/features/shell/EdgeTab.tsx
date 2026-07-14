@@ -6,7 +6,13 @@ import { IconButton } from "../../components/IconButton";
 import { StatusDot } from "../../components/StatusDot";
 import { useShellStore } from "./useShellStore";
 
-export function EdgeTab() {
+export function EdgeTab({
+  paused,
+  onQuickNote,
+}: {
+  paused: boolean;
+  onQuickNote: () => void;
+}) {
   const expand = useShellStore((state) => state.expand);
 
   const open = async () => {
@@ -30,9 +36,13 @@ export function EdgeTab() {
         <Archive aria-hidden="true" />
         <AppMark />
         <span className="edge-tab__tagline">你的工作碎片，随手归档。</span>
-        <StatusDot />
+        <StatusDot paused={paused} />
       </button>
-      <IconButton label="快速新建便签" className="edge-tab__new">
+      <IconButton
+        label="快速新建便签"
+        className="edge-tab__new"
+        onClick={onQuickNote}
+      >
         <Plus aria-hidden="true" />
       </IconButton>
     </motion.aside>

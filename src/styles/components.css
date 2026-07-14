@@ -29,14 +29,19 @@
   gap: var(--space-4);
 }
 
-.library__tabs {
+.content-tabs {
+  position: sticky;
+  z-index: 4;
+  top: calc(var(--space-3) * -1);
   display: flex;
   align-items: center;
   gap: var(--space-1);
   border-bottom: 1px solid var(--rule);
+  background: var(--paper-sheet);
+  margin-bottom: var(--space-4);
 }
 
-.library__tabs button {
+.content-tabs button {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -45,7 +50,7 @@
   cursor: pointer;
 }
 
-.library__tabs button[aria-current="page"] {
+.content-tabs button[aria-current="page"] {
   border-color: var(--accent);
   color: var(--ink-strong);
   font-weight: 650;
@@ -55,7 +60,7 @@
   margin: 0;
   color: var(--ink-muted);
   font-size: 12px;
-  letter-spacing: .04em;
+  letter-spacing: 0;
 }
 
 .library__grid {
@@ -85,7 +90,7 @@
   color: var(--ink-muted);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0;
 }
 
 .clip-card__meta svg {
@@ -122,10 +127,24 @@
   font-size: 11px;
 }
 
-.clip-card__actions > svg {
-  width: 14px;
-  height: 14px;
+.clip-card__actions .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
+.clip-card__actions .icon-button[aria-pressed="true"] {
   color: var(--accent-deep);
+}
+
+.empty-state {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  margin: 0;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font: 18px/1.4 var(--font-editorial);
 }
 
 .notes {
@@ -144,7 +163,7 @@
   color: var(--accent-deep);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: 0;
 }
 
 .notes__heading h2 {
@@ -194,43 +213,207 @@
   font: 650 22px/1.2 var(--font-editorial);
 }
 
+.note-sheet__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.note-sheet__heading h3 {
+  overflow-wrap: anywhere;
+}
+
+.note-sheet__actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.note-sheet__actions .icon-button {
+  width: 32px;
+  height: 32px;
+}
+
 .note-sheet p {
   margin: 0;
   color: var(--ink-body);
   line-height: 1.65;
 }
 
-.note-sheet ul {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.note-sheet label {
-  display: grid;
-  grid-template-columns: 0 17px 1fr;
+.note-sheet__confirm {
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
-  color: var(--ink-body);
-  line-height: 1.4;
+  margin-top: var(--space-4);
+  border-top: 1px solid rgb(38 35 31 / 18%);
+  padding-top: var(--space-3);
+  font-size: 12px;
 }
 
-.note-sheet input {
-  width: 17px;
-  height: 17px;
+.note-sheet__confirm span {
+  margin-right: auto;
+}
+
+.note-sheet__confirm button,
+.note-editor footer button {
+  min-height: 36px;
+  border: 1px solid var(--ink-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper-sheet);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.note-sheet__confirm button:last-child,
+.note-editor footer button[type="submit"] {
+  background: var(--ink-strong);
+  color: var(--paper-sheet);
+}
+
+.note-editor-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(24 29 27 / 38%);
+  padding: var(--space-5);
+}
+
+.note-editor {
+  display: grid;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  gap: var(--space-4);
+  border: 1px solid var(--ink-strong);
+  border-radius: var(--radius-sm);
+  background: var(--paper-sheet);
+  padding: var(--space-5);
+  box-shadow: 7px 7px 0 var(--ink-strong);
+}
+
+.note-editor header,
+.note-editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.note-editor header h2 {
   margin: 0;
+  font: 650 26px/1.15 var(--font-editorial);
+}
+
+.note-editor > label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.note-editor input[type="text"],
+.note-editor > label input,
+.note-editor textarea {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  outline: 0;
+  background: var(--paper-raised);
+  padding: 11px 12px;
+  color: var(--ink-strong);
+}
+
+.note-editor textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.note-editor input:focus,
+.note-editor textarea:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus), transparent 84%);
+}
+
+.note-editor__tones {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.note-editor__tones legend {
+  margin-bottom: var(--space-2);
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.note-editor__tones label {
+  position: relative;
+  cursor: pointer;
+}
+
+.note-editor__tones input {
+  position: absolute;
   opacity: 0;
 }
 
-.note-sheet label > svg {
-  width: 17px;
-  height: 17px;
-  color: var(--accent-deep);
+.note-editor__tones label > span:first-of-type {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--paper-raised);
 }
 
-@media (min-width: 700px) {
+.note-editor__tones label[data-tone="sun"] > span:first-of-type {
+  background: var(--paper-note);
+}
+
+.note-editor__tones label[data-tone="mint"] > span:first-of-type {
+  background: var(--paper-mint);
+}
+
+.note-editor__tones input:focus-visible + span,
+.note-editor__tones input:checked + span {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.note-editor__tones svg {
+  width: 16px;
+  height: 16px;
+}
+
+.note-editor__error {
+  margin: 0;
+  color: var(--accent-deep);
+  font-size: 12px;
+}
+
+.note-editor footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-4);
+}
+
+.note-editor footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.note-editor footer svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-width: 560px) {
   .library__grid {
     grid-template-columns: 1.08fr .92fr;
     align-items: start;

@@ -2,8 +2,8 @@ use tauri::App;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 pub fn install(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    let toggle = Shortcut::new(Some(Modifiers::ALT), Code::Space);
-    let handler_shortcut = toggle.clone();
+    let toggle = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
+    let handler_shortcut = toggle;
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
             .with_handler(move |app, triggered, event| {
