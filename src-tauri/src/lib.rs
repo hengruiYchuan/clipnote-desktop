@@ -1,3 +1,4 @@
+mod ai_pets;
 mod data;
 mod pets;
 mod shortcuts;
@@ -44,6 +45,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             data::get_capture_paused,
+            ai_pets::ai_pet_provider_status,
+            ai_pets::set_ai_pet_api_key,
+            ai_pets::clear_ai_pet_api_key,
+            ai_pets::generate_ai_pet,
             data::set_capture_paused,
             data::list_clips,
             data::set_clip_favorite,

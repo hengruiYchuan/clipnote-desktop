@@ -40,6 +40,10 @@ const bridge = vi.hoisted(() => ({
   copyVaultUsername: vi.fn(),
   copyVaultPassword: vi.fn(),
   onVaultLocked: vi.fn(),
+  aiPetProviderStatus: vi.fn(),
+  setAiPetApiKey: vi.fn(),
+  clearAiPetApiKey: vi.fn(),
+  generateAiPet: vi.fn(),
 }));
 
 vi.mock("../bridge/desktopBridge", () => ({ desktopBridge: bridge }));
@@ -85,6 +89,12 @@ beforeEach(() => {
   });
   bridge.listVaultEntries.mockResolvedValue([]);
   bridge.onVaultLocked.mockResolvedValue(vi.fn());
+  bridge.aiPetProviderStatus.mockResolvedValue({
+    provider: "openai",
+    configured: false,
+    defaultModel: "gpt-image-1.5",
+  });
+  bridge.setAiPetApiKey.mockResolvedValue(undefined);
 });
 
 describe("App", () => {
@@ -142,6 +152,22 @@ describe("App", () => {
       "aria-checked",
       "true",
     );
+  });
+
+  it("opens AI pet studio and stores the provider key through the native bridge", async () => {
+    useShellStore.setState({ mode: "expanded", section: "settings" });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "AI 设计" }));
+    expect(screen.getByRole("heading", { name: "设计桌宠" })).toBeVisible();
+    await user.type(screen.getByLabelText("OpenAI API Key"), "sk-test-12345678901234567890");
+    await user.click(screen.getByRole("button", { name: "保存凭据" }));
+
+    await waitFor(() => {
+      expect(bridge.setAiPetApiKey).toHaveBeenCalledWith("sk-test-12345678901234567890");
+    });
+    expect(window.localStorage.getItem("clipnote-ai-key")).toBeNull();
   });
 
   it("updates capture state through the native bridge", async () => {

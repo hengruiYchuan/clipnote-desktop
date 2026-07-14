@@ -69,13 +69,14 @@ export function App() {
   }, [preferences]);
 
   useEffect(() => {
+    const shouldProtect = mode === "expanded" && section === "vault";
     void desktopBridge
-      .setVaultContentProtected(section === "vault")
+      .setVaultContentProtected(shouldProtect)
       .catch((error) => showMessage(toMessage(error), true));
     return () => {
-      if (section === "vault") void desktopBridge.setVaultContentProtected(false);
+      if (shouldProtect) void desktopBridge.setVaultContentProtected(false);
     };
-  }, [section, showMessage]);
+  }, [mode, section, showMessage]);
 
   useEffect(() => {
     let mounted = true;
@@ -251,6 +252,10 @@ export function App() {
           onDeletePet={(id) => {
             void run(() => desktopBridge.deletePet(id), "桌宠已删除", loadPets);
           }}
+          onGeneratedPet={() => {
+            void loadPets();
+          }}
+          onMessage={showMessage}
           onToggleAutostart={() => {
             const nextEnabled = !autostartEnabled;
             void run(

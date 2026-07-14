@@ -18,6 +18,8 @@ export function SettingsPanel({
   onSelectPet,
   onImportPet,
   onDeletePet,
+  onGeneratedPet,
+  onMessage,
 }: {
   paused: boolean;
   autostartEnabled: boolean;
@@ -31,11 +33,13 @@ export function SettingsPanel({
   onSelectPet: (id: string) => void;
   onImportPet: () => void;
   onDeletePet: (id: string) => void;
+  onGeneratedPet: (pet: PetSummary) => void;
+  onMessage: (text: string, error?: boolean) => void;
 }) {
   return (
     <section className="settings-panel" aria-labelledby="settings-title">
       <header className="settings-panel__heading">
-        <span>PREFERENCES</span>
+        <span>偏好设置</span>
         <h2 id="settings-title">设置</h2>
       </header>
 
@@ -86,6 +90,8 @@ export function SettingsPanel({
           onSelect={onSelectPet}
           onImport={onImportPet}
           onDelete={onDeletePet}
+          onGenerated={onGeneratedPet}
+          onMessage={onMessage}
         />
       </div>
 

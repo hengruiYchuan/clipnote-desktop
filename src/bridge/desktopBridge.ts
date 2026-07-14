@@ -59,6 +59,7 @@ let browserVault: {
   autoLockSeconds: 300,
   entries: [],
 };
+let browserAiPetApiKey = "";
 
 function readBrowserState(): BrowserState {
   try {
@@ -347,4 +348,28 @@ export const desktopBridge = {
       { protected: contentProtected },
       () => undefined,
     ),
+  aiPetProviderStatus: () =>
+    invokeOr<{ provider: string; configured: boolean; defaultModel: string }>(
+      "ai_pet_provider_status",
+      undefined,
+      () => ({ provider: "openai", configured: Boolean(browserAiPetApiKey), defaultModel: "gpt-image-1.5" }),
+    ),
+  setAiPetApiKey: (apiKey: string) =>
+    invokeOr<void>("set_ai_pet_api_key", { apiKey }, () => {
+      browserAiPetApiKey = apiKey;
+    }),
+  clearAiPetApiKey: () =>
+    invokeOr<void>("clear_ai_pet_api_key", undefined, () => {
+      browserAiPetApiKey = "";
+    }),
+  generateAiPet: (input: {
+    name: string;
+    description: string;
+    prompt: string;
+    style: string;
+    referenceDataUrl: string;
+  }) =>
+    invokeOr<PetSummary>("generate_ai_pet", { input }, () => {
+      throw new Error("AI 桌宠生成需要在桌面版中运行");
+    }),
 };

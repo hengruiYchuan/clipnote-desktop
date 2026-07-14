@@ -1,7 +1,8 @@
-import { Check, Trash2, Upload, X } from "lucide-react";
+import { Check, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { ClipPet } from "../shell/ClipPet";
 import type { PetSummary } from "./types";
+import { AiPetStudio } from "./AiPetStudio";
 
 export function PetSettings({
   pets,
@@ -10,6 +11,8 @@ export function PetSettings({
   onSelect,
   onImport,
   onDelete,
+  onGenerated,
+  onMessage,
 }: {
   pets: PetSummary[];
   selectedPetId: string;
@@ -17,8 +20,11 @@ export function PetSettings({
   onSelect: (id: string) => void;
   onImport: () => void;
   onDelete: (id: string) => void;
+  onGenerated: (pet: PetSummary) => void;
+  onMessage: (text: string, error?: boolean) => void;
 }) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [studioOpen, setStudioOpen] = useState(false);
 
   return (
     <div className="pet-settings">
@@ -27,10 +33,14 @@ export function PetSettings({
           <strong>桌宠形象</strong>
           <small>选择内置形象或导入标准宠物包</small>
         </div>
-        <button type="button" onClick={onImport} disabled={busy}>
-          <Upload aria-hidden="true" />
-          导入
-        </button>
+        <span className="pet-settings__tools">
+          <button type="button" onClick={() => setStudioOpen(true)} disabled={busy}>
+            <Sparkles aria-hidden="true" />AI 设计
+          </button>
+          <button type="button" onClick={onImport} disabled={busy}>
+            <Upload aria-hidden="true" />导入
+          </button>
+        </span>
       </div>
       <div className="pet-gallery" role="radiogroup" aria-label="桌宠形象">
         {pets.map((pet) => (
@@ -100,6 +110,13 @@ export function PetSettings({
           </article>
         ))}
       </div>
+      {studioOpen && (
+        <AiPetStudio
+          onClose={() => setStudioOpen(false)}
+          onGenerated={onGenerated}
+          onMessage={onMessage}
+        />
+      )}
     </div>
   );
 }
