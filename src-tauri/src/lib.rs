@@ -31,6 +31,8 @@ pub fn run() {
             window::get_main_window_mode,
             window::expand_main_window,
             window::collapse_main_window,
+            window::start_drag_main_window,
+            window::hide_main_window,
             window::toggle_main_window,
         ])
         .run(tauri::generate_context!())

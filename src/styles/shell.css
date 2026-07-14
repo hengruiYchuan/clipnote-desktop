@@ -17,15 +17,39 @@
   display: grid;
   justify-items: center;
   gap: 8px;
-  padding: 12px 8px 42px;
+  padding: 42px 8px;
   cursor: pointer;
 }
 
-.edge-tab__open > svg {
-  width: 17px;
-  height: 17px;
-  color: var(--accent-deep);
-  stroke-width: 1.7;
+.edge-tab__drag,
+.edge-tab__hide {
+  position: absolute;
+  z-index: 2;
+  top: 6px;
+  width: 26px;
+  height: 26px;
+  background: var(--paper-note);
+  border-color: color-mix(in srgb, var(--paper-note), var(--ink-strong) 18%);
+}
+
+.edge-tab__drag {
+  left: 6px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.edge-tab__drag:active {
+  cursor: grabbing;
+}
+
+.edge-tab__hide {
+  right: 7px;
+}
+
+.edge-tab__drag > svg,
+.edge-tab__hide > svg {
+  width: 14px;
+  height: 14px;
 }
 
 .edge-tab__tagline {

@@ -68,6 +68,8 @@ function browserSubscription<T>(listeners: Set<(value: T) => void>, handler: (va
 export const desktopBridge = {
   expand: () => call("expand_main_window"),
   collapse: () => call("collapse_main_window"),
+  startDragging: () => call("start_drag_main_window"),
+  hide: () => call("hide_main_window"),
   toggle: () => call("toggle_main_window"),
   onModeChanged: async (
     handler: (mode: ShellMode) => void,

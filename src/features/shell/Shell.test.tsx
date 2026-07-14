@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sampleClip } from "../../test/data";
@@ -10,6 +10,8 @@ vi.mock("../../bridge/desktopBridge", () => ({
   desktopBridge: {
     expand: vi.fn(),
     collapse: vi.fn(),
+    startDragging: vi.fn(),
+    hide: vi.fn(),
     onModeChanged: vi.fn(),
     onClipsChanged: vi.fn(),
     onCaptureStateChanged: vi.fn(),
@@ -24,6 +26,8 @@ beforeEach(() => {
   useShellStore.setState({ mode: "collapsed", section: "recent", query: "" });
   vi.mocked(desktopBridge.expand).mockResolvedValue();
   vi.mocked(desktopBridge.collapse).mockResolvedValue();
+  vi.mocked(desktopBridge.startDragging).mockResolvedValue();
+  vi.mocked(desktopBridge.hide).mockResolvedValue();
   vi.mocked(desktopBridge.onModeChanged).mockResolvedValue(vi.fn());
   vi.mocked(desktopBridge.onClipsChanged).mockResolvedValue(vi.fn());
   vi.mocked(desktopBridge.onCaptureStateChanged).mockResolvedValue(vi.fn());
@@ -52,5 +56,20 @@ describe("desktop shell", () => {
 
     expect(desktopBridge.collapse).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "打开 ClipNote 工作台" })).toBeVisible();
+  });
+
+  it("drags and hides without expanding the edge tab", async () => {
+    const user = userEvent.setup();
+    vi.mocked(desktopBridge.expand).mockClear();
+    render(<App />);
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "拖动 ClipNote" }), {
+      button: 0,
+    });
+    await user.click(screen.getByRole("button", { name: "隐藏 ClipNote" }));
+
+    expect(desktopBridge.startDragging).toHaveBeenCalledOnce();
+    expect(desktopBridge.hide).toHaveBeenCalledOnce();
+    expect(desktopBridge.expand).not.toHaveBeenCalled();
   });
 });

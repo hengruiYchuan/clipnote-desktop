@@ -112,6 +112,22 @@ pub fn collapse_main_window(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn start_drag_main_window(app: AppHandle) -> Result<(), String> {
+    app.get_webview_window(MAIN_WINDOW)
+        .ok_or_else(|| "main window is unavailable".to_string())?
+        .start_dragging()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
+    app.get_webview_window(MAIN_WINDOW)
+        .ok_or_else(|| "main window is unavailable".to_string())?
+        .hide()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn toggle_main_window(app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_WINDOW)
