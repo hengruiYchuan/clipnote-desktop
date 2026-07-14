@@ -234,10 +234,43 @@
   height: 32px;
 }
 
-.note-sheet p {
+.note-sheet__body {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.note-sheet__body p {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
   color: var(--ink-body);
   line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+.note-sheet__body p[data-expanded="true"] {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
+.note-sheet__body-toggle {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(38 35 31 / 8%);
+  padding: 5px 10px;
+  color: var(--ink-strong);
+  cursor: pointer;
+  font: 600 12px/1 var(--font-ui);
+}
+
+.note-sheet__body-toggle:hover,
+.note-sheet__body-toggle:focus-visible {
+  background: rgb(38 35 31 / 14%);
 }
 
 .note-sheet__image {

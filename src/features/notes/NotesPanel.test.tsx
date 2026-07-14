@@ -64,6 +64,25 @@ describe("NotesPanel", () => {
       imageData: expect.stringMatching(/^data:image\/png;base64,/),
     });
   });
+
+  it("folds long note text and can expand it", async () => {
+    const user = userEvent.setup();
+    const longNote = {
+      ...sampleNote,
+      body: Array.from({ length: 9 }, (_, index) => `第 ${index + 1} 行便签内容`).join("\n"),
+    };
+    renderPanel({ notes: [longNote] });
+
+    const toggle = screen.getByRole("button", { name: "展开全文" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(toggle);
+
+    expect(screen.getByRole("button", { name: "收起全文" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
 });
 
 function renderPanel(

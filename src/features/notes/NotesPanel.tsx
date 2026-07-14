@@ -31,10 +31,22 @@ export function NotesPanel({
 }: NotesPanelProps) {
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
   const [previewingNote, setPreviewingNote] = useState<Note | null>(null);
+  const [expandedBodyIds, setExpandedBodyIds] = useState<Set<number>>(() => new Set());
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = notes.filter((note) =>
     `${note.title} ${note.body}`.toLocaleLowerCase().includes(normalizedQuery),
   );
+  const toggleBody = (id: number) => {
+    setExpandedBodyIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   return (
     <section className="notes" aria-label="便签工作桌">
@@ -82,7 +94,13 @@ export function NotesPanel({
                 <Maximize2 aria-hidden="true" />
               </button>
             )}
-            {note.body && <p>{note.body}</p>}
+            {note.body && (
+              <NoteBody
+                note={note}
+                expanded={expandedBodyIds.has(note.id)}
+                onToggle={() => toggleBody(note.id)}
+              />
+            )}
             {pendingDelete === note.id && (
               <div className="note-sheet__confirm" role="alert">
                 <span>删除这张便签？</span>
@@ -130,6 +148,48 @@ export function NotesPanel({
         </div>
       )}
     </section>
+  );
+}
+
+const COLLAPSIBLE_BODY_LENGTH = 180;
+const COLLAPSIBLE_BODY_LINES = 6;
+
+function shouldCollapseBody(body: string) {
+  return (
+    body.length > COLLAPSIBLE_BODY_LENGTH ||
+    body.split(/\r?\n/).length > COLLAPSIBLE_BODY_LINES
+  );
+}
+
+function NoteBody({
+  note,
+  expanded,
+  onToggle,
+}: {
+  note: Note;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const collapsible = shouldCollapseBody(note.body);
+  const bodyId = `note-body-${note.id}`;
+
+  return (
+    <div className="note-sheet__body">
+      <p id={bodyId} data-expanded={expanded || undefined}>
+        {note.body}
+      </p>
+      {collapsible && (
+        <button
+          className="note-sheet__body-toggle"
+          type="button"
+          aria-controls={bodyId}
+          aria-expanded={expanded}
+          onClick={onToggle}
+        >
+          {expanded ? "收起全文" : "展开全文"}
+        </button>
+      )}
+    </div>
   );
 }
 
