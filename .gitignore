@@ -10,3 +10,8 @@ src-tauri/target/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local editor and code-intelligence settings
+.codegraph/
+.cursor/
+.vscode/
