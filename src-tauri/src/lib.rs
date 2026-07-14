@@ -2,6 +2,7 @@ mod data;
 mod pets;
 mod shortcuts;
 mod tray;
+mod vault;
 mod window;
 
 use tauri::{Manager, WindowEvent};
@@ -30,12 +31,15 @@ pub fn run() {
         .setup(|app| {
             let data_state = data::initialize(app.handle()).map_err(std::io::Error::other)?;
             let pet_state = pets::initialize(app.handle()).map_err(std::io::Error::other)?;
+            let vault_state = vault::initialize(app.handle()).map_err(std::io::Error::other)?;
             app.manage(data_state);
             app.manage(pet_state);
+            app.manage(vault_state);
             tray::install(app)?;
             shortcuts::install(app)?;
             window::collapse_main_window(app.handle().clone())?;
             data::start_clipboard_monitor(app.handle().clone());
+            vault::start_auto_lock(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,6 +58,20 @@ pub fn run() {
             pets::select_pet,
             pets::import_pet,
             pets::delete_pet,
+            vault::vault_status,
+            vault::create_vault,
+            vault::unlock_vault,
+            vault::lock_vault,
+            vault::list_vault_entries,
+            vault::get_vault_entry,
+            vault::create_vault_entry,
+            vault::update_vault_entry,
+            vault::delete_vault_entry,
+            vault::change_vault_password,
+            vault::set_vault_auto_lock,
+            vault::copy_vault_username,
+            vault::copy_vault_password,
+            vault::set_vault_content_protected,
             window::get_main_window_mode,
             window::expand_main_window,
             window::collapse_main_window,

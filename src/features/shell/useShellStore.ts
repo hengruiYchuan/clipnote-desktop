@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export type ShellMode = "collapsed" | "expanded";
-export type ShellSection = "recent" | "favorites" | "notes" | "settings";
+export type ShellSection = "recent" | "favorites" | "notes" | "vault" | "settings";
 
 type ShellState = {
   mode: ShellMode;

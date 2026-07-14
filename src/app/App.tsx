@@ -13,6 +13,7 @@ import { EdgeTab } from "../features/shell/EdgeTab";
 import { Workspace } from "../features/shell/Workspace";
 import { useShellStore } from "../features/shell/useShellStore";
 import type { ClipItem, Note, NoteInput } from "../types/content";
+import { VaultPanel } from "../features/vault/VaultPanel";
 
 type Message = { text: string; error: boolean };
 
@@ -66,6 +67,15 @@ export function App() {
   useEffect(() => {
     writeClipPreferences(preferences);
   }, [preferences]);
+
+  useEffect(() => {
+    void desktopBridge
+      .setVaultContentProtected(section === "vault")
+      .catch((error) => showMessage(toMessage(error), true));
+    return () => {
+      if (section === "vault") void desktopBridge.setVaultContentProtected(false);
+    };
+  }, [section, showMessage]);
 
   useEffect(() => {
     let mounted = true;
@@ -257,6 +267,8 @@ export function App() {
             );
           }}
         />
+      ) : section === "vault" ? (
+        <VaultPanel query={query} onMessage={showMessage} />
       ) : (
         <LibraryPanel
           items={clips}

@@ -25,6 +25,21 @@ const bridge = vi.hoisted(() => ({
   createNote: vi.fn(),
   updateNote: vi.fn(),
   deleteNote: vi.fn(),
+  setVaultContentProtected: vi.fn(),
+  vaultStatus: vi.fn(),
+  createVault: vi.fn(),
+  unlockVault: vi.fn(),
+  lockVault: vi.fn(),
+  listVaultEntries: vi.fn(),
+  getVaultEntry: vi.fn(),
+  createVaultEntry: vi.fn(),
+  updateVaultEntry: vi.fn(),
+  deleteVaultEntry: vi.fn(),
+  changeVaultPassword: vi.fn(),
+  setVaultAutoLock: vi.fn(),
+  copyVaultUsername: vi.fn(),
+  copyVaultPassword: vi.fn(),
+  onVaultLocked: vi.fn(),
 }));
 
 vi.mock("../bridge/desktopBridge", () => ({ desktopBridge: bridge }));
@@ -62,6 +77,14 @@ beforeEach(() => {
   bridge.selectPet.mockResolvedValue(undefined);
   bridge.importPet.mockResolvedValue(null);
   bridge.deletePet.mockResolvedValue(undefined);
+  bridge.setVaultContentProtected.mockResolvedValue(undefined);
+  bridge.vaultStatus.mockResolvedValue({
+    initialized: false,
+    unlocked: false,
+    autoLockSeconds: 300,
+  });
+  bridge.listVaultEntries.mockResolvedValue([]);
+  bridge.onVaultLocked.mockResolvedValue(vi.fn());
 });
 
 describe("App", () => {
@@ -128,6 +151,27 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "暂停剪贴板采集" }));
     await waitFor(() => expect(bridge.setCapturePaused).toHaveBeenCalledWith(true));
+  });
+
+  it("creates a local vault without exposing it through browser storage", async () => {
+    useShellStore.setState({ mode: "expanded" });
+    bridge.createVault.mockResolvedValue(undefined);
+    bridge.vaultStatus
+      .mockResolvedValueOnce({ initialized: false, unlocked: false, autoLockSeconds: 300 })
+      .mockResolvedValueOnce({ initialized: true, unlocked: true, autoLockSeconds: 300 });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "密码本" }));
+    expect(await screen.findByRole("heading", { name: "创建密码本" })).toBeVisible();
+    const passwordInputs = screen.getAllByLabelText(/主密码|再输一次/);
+    await user.type(passwordInputs[0], "a strong master password");
+    await user.type(passwordInputs[1], "a strong master password");
+    await user.click(screen.getByRole("button", { name: "创建并解锁" }));
+
+    await waitFor(() => expect(bridge.createVault).toHaveBeenCalledWith("a strong master password"));
+    expect(window.localStorage.getItem("clipnote-browser-vault")).toBeNull();
+    expect(bridge.setVaultContentProtected).toHaveBeenCalledWith(true);
   });
 
   it("keeps note creation available after expanding", async () => {

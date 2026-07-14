@@ -1,10 +1,11 @@
-import { Settings } from "lucide-react";
+import { KeyRound, Settings } from "lucide-react";
 import { useShellStore, type ShellSection } from "./useShellStore";
 
 const tabs: { id: ShellSection; label: string }[] = [
   { id: "recent", label: "最近" },
   { id: "favorites", label: "收藏" },
   { id: "notes", label: "便签" },
+  { id: "vault", label: "密码本" },
 ];
 
 export function ContentTabs() {
@@ -20,6 +21,7 @@ export function ContentTabs() {
           aria-current={section === tab.id ? "page" : undefined}
           onClick={() => setSection(tab.id)}
         >
+          {tab.id === "vault" && <KeyRound aria-hidden="true" />}
           {tab.label}
         </button>
       ))}

@@ -5,7 +5,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
         Arc,
     },
     thread,
@@ -22,11 +22,28 @@ const CLIPBOARD_POLL_INTERVAL: Duration = Duration::from_millis(650);
 pub struct DataState {
     db_path: Arc<PathBuf>,
     paused: Arc<AtomicBool>,
+    suppressed_clipboard_sequence: Arc<AtomicU32>,
 }
 
 impl DataState {
     pub fn is_paused(&self) -> bool {
         self.paused.load(Ordering::Relaxed)
+    }
+
+    fn suppress_clipboard_sequence(&self, sequence: u32) {
+        if sequence != 0 {
+            self.suppressed_clipboard_sequence
+                .store(sequence, Ordering::Release);
+        }
+    }
+
+    fn consume_suppressed_sequence(&self, sequence: Option<u32>) -> bool {
+        let Some(sequence) = sequence.filter(|sequence| *sequence != 0) else {
+            return false;
+        };
+        self.suppressed_clipboard_sequence
+            .compare_exchange(sequence, 0, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
     }
 }
 
@@ -79,6 +96,7 @@ pub fn initialize(app: &AppHandle) -> Result<DataState, String> {
     Ok(DataState {
         db_path: Arc::new(db_path),
         paused: Arc::new(AtomicBool::new(paused)),
+        suppressed_clipboard_sequence: Arc::new(AtomicU32::new(0)),
     })
 }
 
@@ -106,6 +124,10 @@ fn monitor_clipboard(app: AppHandle, state: DataState) {
         if !should_read_clipboard(last_sequence, current_sequence) {
             continue;
         }
+        if state.consume_suppressed_sequence(current_sequence) {
+            last_sequence = current_sequence;
+            continue;
+        }
         if state.is_paused() {
             last_sequence = current_sequence;
             continue;
@@ -127,6 +149,13 @@ fn monitor_clipboard(app: AppHandle, state: DataState) {
                 let _ = app.emit("clips-changed", ());
             }
         }
+    }
+}
+
+pub fn suppress_current_clipboard(app: &AppHandle) {
+    if let Some(sequence) = clipboard_sequence_number() {
+        app.state::<DataState>()
+            .suppress_clipboard_sequence(sequence);
     }
 }
 

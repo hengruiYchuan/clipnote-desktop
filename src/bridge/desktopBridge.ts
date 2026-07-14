@@ -9,6 +9,12 @@ import {
 import type { ShellMode } from "../features/shell/useShellStore";
 import { builtinPet, type PetDefinition, type PetSummary } from "../features/pets/types";
 import type { ClipItem, Note, NoteInput } from "../types/content";
+import type {
+  VaultEntry,
+  VaultEntryInput,
+  VaultEntrySummary,
+  VaultStatus,
+} from "../features/vault/types";
 
 declare global {
   interface Window {
@@ -37,6 +43,21 @@ const browserSelectedPetKey = "clipnote-browser-selected-pet-v1";
 const browserListeners = {
   clips: new Set<() => void>(),
   capture: new Set<(paused: boolean) => void>(),
+  vaultLock: new Set<() => void>(),
+};
+
+let browserVault: {
+  initialized: boolean;
+  unlocked: boolean;
+  password: string;
+  autoLockSeconds: number;
+  entries: VaultEntry[];
+} = {
+  initialized: false,
+  unlocked: false,
+  password: "",
+  autoLockSeconds: 300,
+  entries: [],
 };
 
 function readBrowserState(): BrowserState {
@@ -229,4 +250,101 @@ export const desktopBridge = {
       state.notes = state.notes.filter((note) => note.id !== id);
       writeBrowserState(state);
     }),
+  vaultStatus: () =>
+    invokeOr<VaultStatus>("vault_status", undefined, () => ({
+      initialized: browserVault.initialized,
+      unlocked: browserVault.unlocked,
+      autoLockSeconds: browserVault.autoLockSeconds,
+    })),
+  createVault: (password: string) =>
+    invokeOr<void>("create_vault", { password }, () => {
+      if (browserVault.initialized) throw new Error("密码本已经初始化");
+      browserVault = { ...browserVault, initialized: true, unlocked: true, password };
+    }),
+  unlockVault: (password: string) =>
+    invokeOr<void>("unlock_vault", { password }, () => {
+      if (password !== browserVault.password) throw new Error("主密码错误");
+      browserVault.unlocked = true;
+    }),
+  lockVault: () =>
+    invokeOr<void>("lock_vault", undefined, () => {
+      browserVault.unlocked = false;
+      browserListeners.vaultLock.forEach((listener) => listener());
+    }),
+  listVaultEntries: () =>
+    invokeOr<VaultEntrySummary[]>("list_vault_entries", undefined, () =>
+      browserVault.entries.map(({ id, title, username, url, tags, updatedAt }) => ({
+        id,
+        title,
+        username,
+        url,
+        tags,
+        updatedAt,
+      })),
+    ),
+  getVaultEntry: (id: string) =>
+    invokeOr<VaultEntry>("get_vault_entry", { id }, () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry) throw new Error("密码条目不存在");
+      return { ...entry, tags: [...entry.tags] };
+    }),
+  createVaultEntry: (input: VaultEntryInput) =>
+    invokeOr<VaultEntry>("create_vault_entry", { input }, () => {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const entry = {
+        ...input,
+        id: globalThis.crypto?.randomUUID?.() ?? `preview-${timestamp}`,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      browserVault.entries.unshift(entry);
+      return entry;
+    }),
+  updateVaultEntry: (id: string, input: VaultEntryInput) =>
+    invokeOr<VaultEntry>("update_vault_entry", { id, input }, () => {
+      const index = browserVault.entries.findIndex((entry) => entry.id === id);
+      if (index < 0) throw new Error("密码条目不存在");
+      const entry = {
+        ...browserVault.entries[index],
+        ...input,
+        updatedAt: Math.floor(Date.now() / 1000),
+      };
+      browserVault.entries[index] = entry;
+      return entry;
+    }),
+  deleteVaultEntry: (id: string) =>
+    invokeOr<void>("delete_vault_entry", { id }, () => {
+      browserVault.entries = browserVault.entries.filter((entry) => entry.id !== id);
+    }),
+  changeVaultPassword: (currentPassword: string, newPassword: string) =>
+    invokeOr<void>("change_vault_password", { currentPassword, newPassword }, () => {
+      if (currentPassword !== browserVault.password) throw new Error("主密码错误");
+      browserVault.password = newPassword;
+    }),
+  setVaultAutoLock: (seconds: number) =>
+    invokeOr<void>("set_vault_auto_lock", { seconds }, () => {
+      browserVault.autoLockSeconds = seconds;
+    }),
+  copyVaultUsername: (id: string) =>
+    invokeOr<void>("copy_vault_username", { id }, async () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry) throw new Error("密码条目不存在");
+      await navigator.clipboard?.writeText(entry.username);
+    }),
+  copyVaultPassword: (id: string) =>
+    invokeOr<void>("copy_vault_password", { id }, async () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry) throw new Error("密码条目不存在");
+      await navigator.clipboard?.writeText(entry.password);
+    }),
+  onVaultLocked: async (handler: () => void): Promise<UnlistenFn> => {
+    if (!isTauri()) return browserSubscription(browserListeners.vaultLock, handler);
+    return listen("vault-locked", handler);
+  },
+  setVaultContentProtected: (contentProtected: boolean) =>
+    invokeOr<void>(
+      "set_vault_content_protected",
+      { protected: contentProtected },
+      () => undefined,
+    ),
 };

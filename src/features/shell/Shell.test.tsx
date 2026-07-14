@@ -26,6 +26,7 @@ vi.mock("../../bridge/desktopBridge", () => ({
     selectPet: vi.fn(),
     importPet: vi.fn(),
     deletePet: vi.fn(),
+    setVaultContentProtected: vi.fn(),
   },
 }));
 
@@ -57,6 +58,7 @@ beforeEach(() => {
   vi.mocked(desktopBridge.selectPet).mockResolvedValue();
   vi.mocked(desktopBridge.importPet).mockResolvedValue(null);
   vi.mocked(desktopBridge.deletePet).mockResolvedValue();
+  vi.mocked(desktopBridge.setVaultContentProtected).mockResolvedValue();
 });
 
 describe("desktop shell", () => {
