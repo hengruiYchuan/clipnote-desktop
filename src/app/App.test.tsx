@@ -45,7 +45,7 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "打开 ClipNote 工作台" })).toBeVisible();
-    expect(screen.getByText("你的工作碎片，随手归档。")).toBeVisible();
+    expect(screen.getByText("随手收，随手找。")).toBeVisible();
   });
 
   it("keeps navigation available after entering notes", async () => {

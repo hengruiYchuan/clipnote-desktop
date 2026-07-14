@@ -35,7 +35,7 @@ export function EdgeTab({
       >
         <Archive aria-hidden="true" />
         <AppMark />
-        <span className="edge-tab__tagline">你的工作碎片，随手归档。</span>
+        <span className="edge-tab__tagline">随手收，随手找。</span>
         <StatusDot paused={paused} />
       </button>
       <IconButton

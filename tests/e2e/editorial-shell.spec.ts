@@ -27,7 +27,7 @@ test("toggles capture state from the workspace", async ({ page }) => {
 });
 
 test("matches the real collapsed and expanded window compositions", async ({ page }) => {
-  await page.setViewportSize({ width: 112, height: 322 });
+  await page.setViewportSize({ width: 80, height: 236 });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "快速新建便签" })).toBeInViewport();
   await expect(page).toHaveScreenshot("collapsed-editorial-tab.png", {
