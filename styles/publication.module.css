@@ -1,0 +1,467 @@
+.page {
+  min-height: 100svh;
+  background: var(--paper-bright);
+}
+
+.cover {
+  position: relative;
+  display: grid;
+  min-height: min(42rem, calc(100svh - 7rem));
+  align-content: space-between;
+  padding: 2rem max(1.5rem, calc((100% - 76rem) / 2)) 3rem;
+  overflow: hidden;
+  border-bottom: 1px solid var(--ink);
+  background: var(--acid-note);
+}
+
+.coverMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.coverCopy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem 3rem;
+  padding-right: 7rem;
+}
+
+.coverCopy > p:first-child {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.coverCopy h1 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: 4.5rem;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.coverCopy > p:last-child {
+  grid-column: 2;
+  max-width: 42rem;
+  margin: 1.25rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.coverIndex {
+  position: absolute;
+  right: max(1.5rem, calc((100% - 76rem) / 2));
+  bottom: -2.25rem;
+  margin: 0;
+  color: color-mix(in srgb, var(--ink) 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11rem;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.contents {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 3rem;
+  padding: 3rem max(1.5rem, calc((100% - 76rem) / 2));
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.contents > span {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.contents ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--ink);
+  list-style: none;
+}
+
+.contents li {
+  min-width: 0;
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.contents li:nth-child(3n) {
+  border-right: 0;
+}
+
+.contents a {
+  display: grid;
+  gap: 0.6rem;
+  min-height: 5.5rem;
+  align-content: center;
+  padding: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.contents a:hover {
+  background: var(--acid-note);
+}
+
+.contents a span {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.works {
+  background: var(--paper-bright);
+}
+
+.workSpread {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(18rem, 0.75fr);
+  min-height: 43rem;
+  border-bottom: 1px solid var(--ink);
+}
+
+.workSpread figure {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  margin: 0;
+  padding: 4rem max(2rem, calc((100vw - 76rem) / 2));
+  background: var(--paper);
+}
+
+.workSpread img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ink);
+  box-shadow: 1rem 1rem 0 color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.workSpread figcaption {
+  margin-top: 1.5rem;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.workCopy {
+  display: grid;
+  align-content: center;
+  padding: 4rem max(2rem, calc((100vw - 76rem) / 2));
+  border-left: 1px solid var(--ink);
+}
+
+.workCopy > p:first-child,
+.residentCopy > p:first-child {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.workCopy h2,
+.residentCopy h2 {
+  margin: 1rem 0 0;
+  font-size: 3rem;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.creator {
+  margin: 1rem 0 3rem;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.workCopy dl,
+.residentCopy dl {
+  margin: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.workCopy dl > div,
+.residentCopy dl > div {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--ink);
+}
+
+.workCopy dt,
+.residentCopy dt {
+  margin-bottom: 0.6rem;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.workCopy dd,
+.residentCopy dd {
+  margin: 0;
+  line-height: 1.75;
+}
+
+.workSpread[data-reverse] {
+  grid-template-columns: minmax(18rem, 0.75fr) minmax(0, 1.55fr);
+}
+
+.workSpread[data-reverse] figure {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.workSpread[data-reverse] .workCopy {
+  grid-column: 1;
+  grid-row: 1;
+  border-right: 1px solid var(--ink);
+  border-left: 0;
+}
+
+.residentWork {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1.45fr);
+  min-height: 43rem;
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper-bright);
+}
+
+.residentProof {
+  display: grid;
+  min-width: 0;
+  align-content: space-between;
+  padding: 4rem max(2rem, calc((100vw - 76rem) / 2));
+  overflow: hidden;
+  background: var(--editor-blue);
+  color: var(--paper-bright);
+}
+
+.residentProof span,
+.residentProof small {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+.residentProof strong {
+  max-width: 8ch;
+  overflow-wrap: anywhere;
+  font-size: 4.25rem;
+  line-height: 1.1;
+}
+
+.residentCopy {
+  min-width: 0;
+  padding: 4rem max(2rem, calc((100vw - 76rem) / 2));
+}
+
+.residentIntroduction {
+  max-width: 44rem;
+  margin: 2rem 0 3rem;
+  font-size: 1.08rem;
+  line-height: 1.85;
+}
+
+.residentCopy dd {
+  overflow-wrap: anywhere;
+}
+
+.permissionNote {
+  margin: 2rem 0 0;
+  padding: 1rem;
+  border-left: 0.3rem solid var(--editor-blue);
+  background: color-mix(in srgb, var(--editor-blue) 8%, transparent);
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.7;
+}
+
+.editorNote {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 3rem;
+  padding: 5rem max(1.5rem, calc((100% - 76rem) / 2));
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.editorNote > p,
+.nextIssue > p {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.editorNote h2 {
+  max-width: 22ch;
+  margin: 0;
+  font-size: 2.75rem;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.editorNote div > p {
+  max-width: 42rem;
+  margin: 2rem 0 0;
+  color: var(--ink-muted);
+  line-height: 1.85;
+}
+
+.nextIssue {
+  display: grid;
+  justify-items: start;
+  gap: 2rem;
+  padding: 6rem max(1.5rem, calc((100% - 76rem) / 2));
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
+.nextIssue h2 {
+  max-width: 16ch;
+  margin: 0;
+  font-size: 3.75rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+@media (max-width: 58rem) {
+  .coverCopy {
+    padding-right: 3rem;
+  }
+
+  .coverCopy h1 {
+    font-size: 3.75rem;
+  }
+
+  .workSpread,
+  .workSpread[data-reverse],
+  .residentWork {
+    grid-template-columns: 1fr;
+  }
+
+  .workSpread figure,
+  .workSpread[data-reverse] figure,
+  .workSpread .workCopy,
+  .workSpread[data-reverse] .workCopy {
+    grid-column: 1;
+  }
+
+  .workSpread figure,
+  .workSpread[data-reverse] figure {
+    grid-row: 1;
+  }
+
+  .workSpread .workCopy,
+  .workSpread[data-reverse] .workCopy {
+    grid-row: 2;
+    border-top: 1px solid var(--ink);
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .workSpread figure,
+  .workCopy,
+  .residentProof,
+  .residentCopy {
+    padding: 3.5rem max(1.5rem, calc((100% - 42rem) / 2));
+  }
+
+  .residentProof {
+    min-height: 28rem;
+  }
+}
+
+@media (max-width: 47.5rem) {
+  .cover {
+    min-height: calc(100svh - 7rem);
+    padding: 1.5rem 1rem 2.5rem;
+  }
+
+  .coverCopy {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+    padding-right: 0;
+  }
+
+  .coverCopy h1 {
+    max-width: 9ch;
+    font-size: 3rem;
+  }
+
+  .coverCopy > p:last-child {
+    grid-column: 1;
+    margin-top: 0.5rem;
+  }
+
+  .coverIndex {
+    right: 1rem;
+    bottom: -1.25rem;
+    font-size: 7rem;
+  }
+
+  .contents,
+  .editorNote {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 3.5rem 1rem;
+  }
+
+  .contents ol {
+    grid-template-columns: 1fr;
+  }
+
+  .contents li,
+  .contents li:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .workSpread,
+  .residentWork {
+    min-height: auto;
+  }
+
+  .workSpread figure,
+  .workCopy,
+  .residentProof,
+  .residentCopy {
+    padding: 3rem 1rem;
+  }
+
+  .workSpread img {
+    box-shadow: 0.5rem 0.5rem 0 color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+
+  .workCopy h2,
+  .residentCopy h2 {
+    font-size: 2.4rem;
+  }
+
+  .residentProof {
+    min-height: 23rem;
+  }
+
+  .residentProof strong {
+    font-size: 3rem;
+  }
+
+  .editorNote h2 {
+    font-size: 2.2rem;
+  }
+
+  .nextIssue {
+    padding: 5rem 1rem;
+  }
+
+  .nextIssue h2 {
+    font-size: 2.75rem;
+  }
+}

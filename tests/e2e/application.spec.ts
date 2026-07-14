@@ -22,6 +22,15 @@ test("申请人完成七页访谈并得到选题诊断", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "选题诊断单" })).toBeVisible();
   await expect(page.getByText("七日完成概率")).toBeVisible();
   await expect(page.getByText("只做三步")).toBeVisible();
+
+  await page.getByRole("link", { name: "进入 Day 1 工作室 →" }).click();
+  await expect(page).toHaveURL(/studio\/day-1/);
+  await expect(page.getByText("从你的选题诊断中带过来的方向")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: /这个人是/ })).not.toHaveValue("");
+  await expect(page.getByRole("textbox", { name: /七天后可以/ })).not.toHaveValue("");
+  await expect(
+    page.getByRole("list", { name: "暂时不做清单" }).locator("li"),
+  ).not.toHaveCount(0);
 });
 
 test("逐题校验并允许返回修改已经保存的回答", async ({ page }) => {

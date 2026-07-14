@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900" role="img" aria-labelledby="title desc">
+  <title id="title">简报裁纸刀编辑页校样</title>
+  <desc id="desc">过长活动需求被裁成矛盾、缺口和下一步</desc>
+  <rect width="1280" height="900" fill="#315fd6"/>
+  <rect x="76" y="56" width="1128" height="788" fill="#f8f3e9" stroke="#171713" stroke-width="4"/>
+  <text x="116" y="112" fill="#171713" font-family="serif" font-size="30" font-weight="700">简报裁纸刀</text>
+  <text x="1160" y="112" fill="#e63c27" font-family="monospace" font-size="18" text-anchor="end">BRIEF / V0.5</text>
+  <line x1="116" y1="150" x2="1164" y2="150" stroke="#171713" stroke-width="3"/>
+  <text x="116" y="210" fill="#68645b" font-family="monospace" font-size="16">原始需求 / 2,840 字</text>
+  <rect x="116" y="246" width="300" height="470" fill="#efe9dc"/>
+  <line x1="146" y1="292" x2="386" y2="292" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <line x1="146" y1="332" x2="360" y2="332" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <line x1="146" y1="372" x2="380" y2="372" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <line x1="146" y1="412" x2="330" y2="412" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <line x1="146" y1="452" x2="386" y2="452" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <line x1="146" y1="492" x2="348" y2="492" stroke="#68645b" stroke-width="10" opacity=".35"/>
+  <path d="M442 475h74" stroke="#e63c27" stroke-width="4"/>
+  <path d="m496 455 22 20-22 20" fill="none" stroke="#e63c27" stroke-width="4"/>
+  <rect x="550" y="246" width="614" height="130" fill="#d7ef45" stroke="#171713" stroke-width="2"/>
+  <text x="582" y="288" fill="#171713" font-family="monospace" font-size="16">01 / 矛盾</text>
+  <text x="582" y="337" fill="#171713" font-family="serif" font-size="27" font-weight="700">既要高参与，又不允许改变既定流程</text>
+  <rect x="550" y="400" width="614" height="130" fill="#f8f3e9" stroke="#171713" stroke-width="2"/>
+  <text x="582" y="442" fill="#e63c27" font-family="monospace" font-size="16">02 / 缺口</text>
+  <text x="582" y="491" fill="#171713" font-family="serif" font-size="27" font-weight="700">没有定义谁在何时作出通过判断</text>
+  <rect x="550" y="554" width="614" height="162" fill="#171713"/>
+  <text x="582" y="596" fill="#d7ef45" font-family="monospace" font-size="16">03 / 下一步</text>
+  <text x="582" y="648" fill="#f8f3e9" font-family="serif" font-size="27" font-weight="700">先约 20 分钟确认唯一成功标准</text>
+  <text x="116" y="790" fill="#68645b" font-family="monospace" font-size="16">CUT WHAT DOES NOT CHANGE THE NEXT DECISION.</text>
+</svg>

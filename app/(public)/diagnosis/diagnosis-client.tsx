@@ -9,6 +9,7 @@ import {
 } from "@/features/application/application.schema";
 import { loadApplicationDraft } from "@/features/application/application-session";
 import { applicationSteps } from "@/features/application/application.types";
+import { saveDiagnosis } from "@/features/diagnosis/diagnosis-session";
 import { DiagnosisSheet } from "@/features/diagnosis/diagnosis-sheet";
 import { diagnosisSchema, type Diagnosis } from "@/features/diagnosis/diagnosis.schema";
 
@@ -88,6 +89,7 @@ function DiagnosisRequest({ answers }: { answers: CompleteApplicationAnswers }) 
           return;
         }
 
+        saveDiagnosis(diagnosis.data);
         setState({
           status: "ready",
           diagnosis: diagnosis.data,

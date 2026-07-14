@@ -86,7 +86,7 @@ export function DiagnosisSheet({
 
       <footer className={styles.sheetFooter}>
         <Link href="/apply">返回修改访谈</Link>
-        <p>下一阶段：签署七日边界，进入私人工作室</p>
+        <Link href="/studio/day-1">进入 Day 1 工作室 →</Link>
       </footer>
     </article>
   );

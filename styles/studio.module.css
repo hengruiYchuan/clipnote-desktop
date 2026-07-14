@@ -1,0 +1,1313 @@
+.page {
+  min-height: 100svh;
+  background: var(--paper);
+}
+
+.loading {
+  min-height: calc(100svh - 3.5rem);
+  margin: 0;
+  padding: 18vh max(1rem, calc((100% - 72rem) / 2));
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.orientation,
+.projectContext,
+.editor,
+.confirmation {
+  padding-inline: max(1.5rem, calc((100% - 72rem) / 2));
+}
+
+.orientation {
+  padding-top: 4.5rem;
+  border-bottom: 1px solid var(--ink);
+}
+
+.dayMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.orientationCopy {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 2rem 3rem;
+  margin: 5rem 0 4rem;
+}
+
+.orientationCopy > p:first-child,
+.projectContext > p,
+.editorHeader p,
+.confirmation > header > p:first-child {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.orientationCopy h1 {
+  max-width: 12ch;
+  margin: 0;
+  font-size: 4rem;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.orientationCopy > p:last-child {
+  grid-column: 2;
+  max-width: 39rem;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+
+.roadmap {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--ink);
+  border-bottom: 0;
+  list-style: none;
+}
+
+.roadmap li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 5.5rem;
+  padding: 1rem 1.25rem;
+  border-right: 1px solid var(--ink);
+}
+
+.roadmap li:last-child {
+  border-right: 0;
+}
+
+.roadmap li span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  border: 1px solid var(--proof-red);
+  border-radius: 50%;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.roadmap li strong {
+  font-size: 1rem;
+}
+
+.projectContext {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 3rem;
+  padding-top: 3.5rem;
+  padding-bottom: 3.5rem;
+  border-bottom: 1px solid var(--ink);
+  background: var(--acid-note);
+}
+
+.projectContext h2 {
+  max-width: 24ch;
+  margin: 0 0 2.5rem;
+  font-size: 2.35rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.projectContext dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.projectContext dl div {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--ink);
+}
+
+.projectContext dl div:first-child {
+  padding-right: 2rem;
+  border-right: 1px solid var(--ink);
+}
+
+.projectContext dl div:last-child {
+  padding-left: 2rem;
+}
+
+.projectContext dt,
+.boundarySummary dt {
+  margin-bottom: 0.65rem;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.projectContext dd,
+.boundarySummary dd {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.editor {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+  background: var(--paper-bright);
+}
+
+.editorHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-bottom: 2.5rem;
+}
+
+.editorHeader h2 {
+  margin: 0.75rem 0 0;
+  font-size: 2.75rem;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.editorHeader > p {
+  max-width: 16rem;
+  color: var(--ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) 18rem;
+  gap: 2.5rem 3rem;
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--ink);
+}
+
+.stepHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.stepHeading > span {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  place-items: center;
+  background: var(--proof-red);
+  color: var(--paper-bright);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.stepHeading h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.stepHeading p {
+  margin: 0.75rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.86rem;
+  line-height: 1.7;
+}
+
+.field,
+.exclusionEditor {
+  min-width: 0;
+}
+
+.field > span,
+.exclusionEditor > label {
+  display: block;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.field textarea,
+.exclusionInput input {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.field textarea {
+  min-height: 8rem;
+  padding: 0.5rem 0;
+  font-size: 1.22rem;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.marginNote {
+  align-self: start;
+  padding: 1.25rem;
+  border-left: 0.3rem solid var(--editor-blue);
+  background: color-mix(in srgb, var(--editor-blue) 8%, var(--paper-bright));
+}
+
+.marginNote header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.marginNote header span {
+  color: var(--editor-blue);
+  font-weight: 600;
+}
+
+.marginNote header small {
+  color: var(--ink-muted);
+}
+
+.marginNote p {
+  margin: 1.25rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.75;
+}
+
+.marginNote[data-kind="recognition"] {
+  border-left-color: var(--proof-red);
+  background: color-mix(in srgb, var(--proof-red) 7%, var(--paper-bright));
+}
+
+.marginNote[data-kind="recognition"] header span {
+  color: var(--proof-red);
+}
+
+.marginNote[data-kind="cut"] {
+  border-left-color: var(--ink);
+  background: var(--paper);
+}
+
+.marginNote[data-kind="cut"] header span {
+  color: var(--ink);
+}
+
+.exclusionInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  gap: 0.75rem;
+}
+
+.exclusionInput input {
+  min-width: 0;
+  padding: 0.65rem 0;
+}
+
+.exclusionInput button,
+.exclusionEditor li button {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.exclusionInput button {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+}
+
+.exclusionInput button:hover,
+.exclusionEditor li button:hover {
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
+.exclusionEditor ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exclusionEditor li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 0.3rem solid var(--proof-red);
+  background: color-mix(in srgb, var(--proof-red) 8%, transparent);
+}
+
+.exclusionEditor li button {
+  width: 2rem;
+  height: 2rem;
+}
+
+.error {
+  margin: 0 0 2rem 14rem;
+  color: var(--proof-red);
+  font-weight: 600;
+}
+
+.confirmationAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--ink);
+}
+
+.confirmationAction div {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.confirmationAction strong {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.confirmationAction span {
+  color: var(--ink-muted);
+}
+
+.confirmationAction button,
+.confirmation footer button {
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.confirmationAction button:hover,
+.confirmation footer button:hover {
+  border-color: var(--proof-red);
+  background: var(--proof-red);
+}
+
+.confirmation {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+  background: var(--paper-bright);
+}
+
+.confirmation > header {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem 3rem;
+  margin-bottom: 3.5rem;
+}
+
+.confirmation > header h2 {
+  margin: 0;
+  font-size: 3.5rem;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.confirmation > header > p:last-child {
+  grid-column: 2;
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.boundarySummary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.boundarySummary div {
+  min-width: 0;
+  min-height: 11rem;
+  padding: 1.5rem;
+  border-right: 1px solid var(--ink);
+}
+
+.boundarySummary div:last-child {
+  border-right: 0;
+}
+
+.boundarySummary dd {
+  font-size: 1.1rem;
+}
+
+.confirmation footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-top: 2rem;
+}
+
+.confirmation footer span {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.confirmationLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.confirmationLinks a,
+.primaryJourneyLink {
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-decoration: none;
+}
+
+.confirmationLinks a:hover,
+.primaryJourneyLink:hover {
+  border-color: var(--proof-red);
+  background: var(--proof-red);
+}
+
+.journeyHero,
+.journeyProgress,
+.journeyEditor,
+.lockedDay,
+.dayComplete {
+  padding-inline: max(1.5rem, calc((100% - 72rem) / 2));
+}
+
+.journeyHero {
+  position: relative;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--paper-bright);
+}
+
+.journeyHero .dayMeta {
+  color: var(--acid-note);
+}
+
+.journeyHeroCopy {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem 3rem;
+  margin-top: 4.5rem;
+  padding-right: 13rem;
+}
+
+.journeyHeroCopy > p:first-child {
+  margin: 0;
+  color: var(--acid-note);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.journeyHeroCopy h1 {
+  max-width: 11ch;
+  margin: 0;
+  font-size: 3.65rem;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.journeyHeroCopy > p:last-child {
+  grid-column: 2;
+  max-width: 42rem;
+  margin: 1rem 0 0;
+  color: color-mix(in srgb, var(--paper-bright) 72%, transparent);
+  font-size: 1.02rem;
+  line-height: 1.85;
+}
+
+.outcomeStamp {
+  position: absolute;
+  right: max(1.5rem, calc((100% - 72rem) / 2));
+  bottom: 3rem;
+  display: grid;
+  width: 10.5rem;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--acid-note);
+  color: var(--acid-note);
+  transform: rotate(-2deg);
+}
+
+.outcomeStamp span {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.outcomeStamp strong {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.journeyProgress {
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.journeyProgress ol {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-left: 1px solid var(--ink);
+  list-style: none;
+}
+
+.journeyProgress li {
+  min-width: 0;
+  border-right: 1px solid var(--ink);
+}
+
+.journeyProgress li > a,
+.journeyProgress li > span {
+  display: grid;
+  min-height: 4.5rem;
+  align-content: center;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  text-decoration: none;
+}
+
+.journeyProgress li > a:hover {
+  background: var(--acid-note);
+}
+
+.journeyProgress li span span,
+.journeyProgress li a span {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.journeyProgress li strong {
+  font-size: 0.82rem;
+}
+
+.journeyProgress li[data-status="current"] {
+  background: var(--proof-red);
+  color: var(--paper-bright);
+}
+
+.journeyProgress li[data-status="current"] a span {
+  color: var(--paper-bright);
+}
+
+.journeyProgress li[data-status="complete"] a span {
+  color: var(--proof-red);
+}
+
+.journeyProgress li[data-status="locked"] {
+  color: color-mix(in srgb, var(--ink) 38%, transparent);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.journeyEditor {
+  padding-top: 4.5rem;
+  padding-bottom: 5rem;
+  background: var(--paper-bright);
+}
+
+.journeyEditorHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-bottom: 2.75rem;
+}
+
+.journeyEditorHeader > div > p {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.journeyEditorHeader h2 {
+  margin: 0.8rem 0 0;
+  font-size: 2.4rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.journeyEditorHeader > p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+
+.truthNote {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 3rem;
+  margin-bottom: 0;
+  padding: 1.5rem;
+  border-top: 1px solid var(--ink);
+  background: var(--acid-note);
+}
+
+.truthNote strong {
+  font-size: 0.95rem;
+}
+
+.truthNote p {
+  max-width: 42rem;
+  margin: 0;
+  line-height: 1.75;
+}
+
+.questionBlock {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 3rem;
+  padding: 3rem 0;
+  border-top: 1px solid var(--ink);
+}
+
+.questionBlock > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.questionBlock > header > span {
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.questionBlock h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+.questionBody {
+  display: grid;
+  gap: 2.25rem;
+  min-width: 0;
+}
+
+.writingField {
+  display: grid;
+  min-width: 0;
+}
+
+.writingField > strong,
+.choiceField legend,
+.checkField legend {
+  margin-bottom: 0.45rem;
+  font-size: 1rem;
+}
+
+.writingField > span {
+  margin-bottom: 1rem;
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+.writingField textarea,
+.writingField input {
+  width: 100%;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.writingField textarea {
+  min-height: 7rem;
+  padding: 0.9rem;
+  font-size: 1rem;
+  line-height: 1.75;
+  resize: vertical;
+}
+
+.writingField input {
+  min-height: 3.25rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.choiceField,
+.checkField {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choiceList,
+.checkList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.choiceList label,
+.checkList label,
+.permissionCheck {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 0.8rem;
+  min-height: 5.4rem;
+  padding: 1rem;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.choiceList label:has(input:checked),
+.checkList label:has(input:checked),
+.permissionCheck:has(input:checked) {
+  border-color: var(--editor-blue);
+  background: color-mix(in srgb, var(--editor-blue) 8%, var(--paper-bright));
+  box-shadow: inset 0.3rem 0 0 var(--editor-blue);
+}
+
+.choiceList input,
+.checkList input,
+.permissionCheck input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--editor-blue);
+}
+
+.choiceList span,
+.checkList span,
+.permissionCheck span {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.choiceList strong,
+.checkList strong,
+.permissionCheck strong {
+  font-size: 0.9rem;
+}
+
+.choiceList small,
+.checkList small,
+.permissionCheck small {
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.permissionCheck {
+  min-height: auto;
+  background: var(--acid-note);
+}
+
+.journeyError {
+  margin: 0 0 2rem 14rem;
+  padding: 1rem;
+  border-left: 0.3rem solid var(--proof-red);
+  background: color-mix(in srgb, var(--proof-red) 8%, transparent);
+  color: var(--proof-red);
+  font-weight: 600;
+  line-height: 1.65;
+}
+
+.journeyAction {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--ink);
+}
+
+.journeyAction > a {
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.journeyAction > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.journeyAction span {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+}
+
+.journeyAction button,
+.dayComplete button {
+  min-height: 3rem;
+  padding: 0.85rem 1.2rem;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--paper-bright);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.journeyAction button:hover,
+.dayComplete button:hover {
+  border-color: var(--proof-red);
+  background: var(--proof-red);
+}
+
+.lockedDay,
+.dayComplete {
+  min-height: 31rem;
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+  background: var(--paper-bright);
+}
+
+.lockedDay > p:first-child,
+.dayComplete header > p:first-child {
+  margin: 0;
+  color: var(--proof-red);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.lockedDay h2,
+.dayComplete h2 {
+  max-width: 18ch;
+  margin: 1rem 0;
+  font-size: 3rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.lockedDay > p:not(:first-child),
+.dayComplete header > p:last-child {
+  max-width: 40rem;
+  color: var(--ink-muted);
+  line-height: 1.75;
+}
+
+.lockedDay > a {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding-block: 0.7rem;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.dayComplete header {
+  margin-bottom: 3rem;
+}
+
+.dayComplete dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.dayComplete dl > div {
+  min-width: 0;
+  padding: 1.5rem;
+  border-right: 1px solid var(--ink);
+}
+
+.dayComplete dl > div:last-child {
+  border-right: 0;
+}
+
+.dayComplete dt {
+  margin-bottom: 0.75rem;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+}
+
+.dayComplete dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.dayComplete footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 2rem;
+}
+
+.sessionBar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem max(1.5rem, calc((100% - 72rem) / 2));
+  background: var(--proof-red);
+  color: var(--paper-bright);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 64rem) {
+  .step {
+    grid-template-columns: 10rem minmax(0, 1fr);
+  }
+
+  .marginNote {
+    grid-column: 2;
+  }
+
+  .error {
+    margin-left: 13rem;
+  }
+
+  .journeyHeroCopy {
+    padding-right: 11rem;
+  }
+
+  .questionBlock,
+  .truthNote {
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .journeyAction {
+    grid-template-columns: 9rem minmax(0, 1fr) auto;
+    gap: 2rem;
+  }
+
+  .journeyError {
+    margin-left: 11rem;
+  }
+}
+
+@media (max-width: 47.5rem) {
+  .orientation,
+  .projectContext,
+  .editor,
+  .confirmation,
+  .journeyHero,
+  .journeyProgress,
+  .journeyEditor,
+  .lockedDay,
+  .dayComplete {
+    padding-inline: 1rem;
+  }
+
+  .orientation {
+    padding-top: 3rem;
+  }
+
+  .orientationCopy,
+  .projectContext,
+  .confirmation > header {
+    grid-template-columns: 1fr;
+  }
+
+  .orientationCopy {
+    gap: 1rem;
+    margin: 3.5rem 0 3rem;
+  }
+
+  .orientationCopy h1 {
+    font-size: 2.75rem;
+  }
+
+  .orientationCopy > p:last-child,
+  .confirmation > header > p:last-child {
+    grid-column: 1;
+  }
+
+  .roadmap {
+    grid-template-columns: 1fr;
+  }
+
+  .roadmap li {
+    min-height: 4.5rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .roadmap li:last-child {
+    border-bottom: 0;
+  }
+
+  .projectContext {
+    gap: 1.5rem;
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  .projectContext h2 {
+    font-size: 1.75rem;
+  }
+
+  .projectContext dl,
+  .boundarySummary {
+    grid-template-columns: 1fr;
+  }
+
+  .projectContext dl div:first-child,
+  .projectContext dl div:last-child {
+    padding-inline: 0;
+    border-right: 0;
+  }
+
+  .editor,
+  .confirmation {
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .editorHeader,
+  .confirmationAction,
+  .confirmation footer,
+  .journeyEditorHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .editorHeader > p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .editorHeader h2 {
+    font-size: 2.25rem;
+  }
+
+  .step {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+    padding: 3rem 0;
+  }
+
+  .marginNote {
+    grid-column: 1;
+  }
+
+  .field textarea {
+    font-size: 1.08rem;
+  }
+
+  .error {
+    margin-left: 0;
+  }
+
+  .confirmationAction button {
+    width: 100%;
+  }
+
+  .confirmationLinks {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .confirmationLinks a,
+  .confirmationLinks button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .confirmation > header {
+    gap: 1rem;
+  }
+
+  .confirmation > header h2 {
+    font-size: 2.5rem;
+  }
+
+  .boundarySummary div {
+    min-height: auto;
+    padding: 1.5rem 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .boundarySummary div:last-child {
+    border-bottom: 0;
+  }
+
+  .sessionBar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-inline: 1rem;
+  }
+
+  .journeyHero {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .journeyHeroCopy {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+    margin-top: 3.25rem;
+    padding-right: 0;
+  }
+
+  .journeyHeroCopy h1 {
+    font-size: 2.65rem;
+  }
+
+  .journeyHeroCopy > p:last-child {
+    grid-column: 1;
+    margin-top: 0.5rem;
+  }
+
+  .outcomeStamp {
+    position: static;
+    width: 100%;
+    margin-top: 2rem;
+    transform: none;
+  }
+
+  .journeyProgress {
+    padding-inline: 0;
+    overflow-x: auto;
+  }
+
+  .journeyProgress ol {
+    width: max-content;
+    min-width: 100%;
+    border-left: 0;
+  }
+
+  .journeyProgress li {
+    width: 5.25rem;
+    flex: 0 0 5.25rem;
+  }
+
+  .journeyProgress li > a,
+  .journeyProgress li > span {
+    min-height: 4.25rem;
+  }
+
+  .journeyEditor {
+    padding-top: 3.5rem;
+    padding-bottom: 4rem;
+  }
+
+  .journeyEditorHeader {
+    padding-bottom: 2rem;
+  }
+
+  .journeyEditorHeader h2 {
+    font-size: 2rem;
+  }
+
+  .truthNote,
+  .questionBlock {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .truthNote {
+    padding: 1.25rem;
+  }
+
+  .questionBlock {
+    padding: 2.5rem 0;
+  }
+
+  .choiceList,
+  .checkList {
+    grid-template-columns: 1fr;
+  }
+
+  .journeyError {
+    margin-left: 0;
+  }
+
+  .journeyAction {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .journeyAction button {
+    width: 100%;
+  }
+
+  .lockedDay,
+  .dayComplete {
+    min-height: 28rem;
+    padding-top: 3.5rem;
+    padding-bottom: 3.5rem;
+  }
+
+  .lockedDay h2,
+  .dayComplete h2 {
+    font-size: 2.35rem;
+  }
+
+  .dayComplete dl {
+    grid-template-columns: 1fr;
+  }
+
+  .dayComplete dl > div {
+    padding: 1.25rem 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--ink);
+  }
+
+  .dayComplete dl > div:last-child {
+    border-bottom: 0;
+  }
+
+  .dayComplete footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .dayComplete footer a,
+  .dayComplete footer button {
+    width: 100%;
+    text-align: center;
+  }
+}
