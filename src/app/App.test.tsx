@@ -41,11 +41,12 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("introduces the desktop entry accessibly", () => {
+  it("keeps the collapsed entry to one icon-sized action", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "打开 ClipNote 工作台" })).toBeVisible();
-    expect(screen.getByText("随手收，随手找。")).toBeVisible();
+    expect(screen.queryByText("随手收，随手找。")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "快速新建便签" })).not.toBeInTheDocument();
   });
 
   it("keeps navigation available after entering notes", async () => {
@@ -69,11 +70,13 @@ describe("App", () => {
     await waitFor(() => expect(bridge.setCapturePaused).toHaveBeenCalledWith(true));
   });
 
-  it("opens the note editor from the collapsed quick action", async () => {
+  it("keeps note creation available after expanding", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "快速新建便签" }));
+    await user.click(screen.getByRole("button", { name: "打开 ClipNote 工作台" }));
+    await user.click(screen.getByRole("button", { name: "便签" }));
+    await user.click(screen.getByRole("button", { name: "新建便签" }));
 
     await waitFor(() => expect(bridge.expand).toHaveBeenCalledOnce());
     expect(screen.getByRole("dialog", { name: "新建便签" })).toBeVisible();

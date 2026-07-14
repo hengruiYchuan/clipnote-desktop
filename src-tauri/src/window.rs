@@ -3,8 +3,8 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 const MAIN_WINDOW: &str = "main";
 const EDGE_MARGIN: i32 = 12;
-const COLLAPSED_WIDTH: u32 = 80;
-const COLLAPSED_HEIGHT: u32 = 236;
+const COLLAPSED_WIDTH: u32 = 56;
+const COLLAPSED_HEIGHT: u32 = 56;
 const EXPANDED_WIDTH: u32 = 648;
 const EXPANDED_HEIGHT: u32 = 1000;
 
@@ -158,10 +158,10 @@ mod tests {
         assert_eq!(
             collapsed_geometry(area, 1.0),
             Geometry {
-                x: 1828,
-                y: 422,
-                width: 80,
-                height: 236,
+                x: 1852,
+                y: 512,
+                width: 56,
+                height: 56,
             }
         );
     }

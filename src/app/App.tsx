@@ -15,7 +15,6 @@ export function App() {
   const section = useShellStore((state) => state.section);
   const query = useShellStore((state) => state.query);
   const setMode = useShellStore((state) => state.setMode);
-  const setSection = useShellStore((state) => state.setSection);
   const [clips, setClips] = useState<ClipItem[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [paused, setPaused] = useState(false);
@@ -105,18 +104,6 @@ export function App() {
     }
   };
 
-  const openQuickNote = async () => {
-    try {
-      await desktopBridge.expand();
-      setMode("expanded");
-      setSection("notes");
-      setEditingNote(null);
-      setEditorOpen(true);
-    } catch (error) {
-      showMessage(toMessage(error), true);
-    }
-  };
-
   const saveNote = async (input: NoteInput) => {
     const saved = await run(
       async () => {
@@ -133,14 +120,7 @@ export function App() {
   };
 
   if (mode === "collapsed") {
-    return (
-      <EdgeTab
-        paused={paused}
-        onQuickNote={() => {
-          void openQuickNote();
-        }}
-      />
-    );
+    return <EdgeTab paused={paused} />;
   }
 
   return (

@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "ClipNote",
-        "width": 80,
-        "height": 236,
+        "width": 56,
+        "height": 56,
         "resizable": false,
         "decorations": false,
         "transparent": true,
