@@ -1,8 +1,8 @@
-import { Clipboard } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef } from "react";
 import { desktopBridge } from "../../bridge/desktopBridge";
 import { StatusDot } from "../../components/StatusDot";
+import { ClipPet } from "./ClipPet";
 import { useShellStore } from "./useShellStore";
 
 const DRAG_THRESHOLD = 5;
@@ -63,7 +63,7 @@ export function EdgeTab({ paused }: { paused: boolean }) {
           void desktopBridge.hide();
         }}
       >
-        <Clipboard aria-hidden="true" />
+        <ClipPet paused={paused} />
         <StatusDot paused={paused} />
       </button>
     </motion.aside>

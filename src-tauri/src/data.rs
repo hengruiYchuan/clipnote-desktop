@@ -98,17 +98,24 @@ fn monitor_clipboard(app: AppHandle, state: DataState) {
         }
     };
     let mut last_seen: Option<String> = None;
+    let mut last_sequence = None;
 
     loop {
         thread::sleep(CLIPBOARD_POLL_INTERVAL);
-        let Ok(content) = clipboard.get_text() else {
-            continue;
-        };
-        if last_seen.as_ref() == Some(&content) {
+        let current_sequence = clipboard_sequence_number();
+        if !should_read_clipboard(last_sequence, current_sequence) {
             continue;
         }
         if state.is_paused() {
-            last_seen = Some(content);
+            last_sequence = current_sequence;
+            continue;
+        }
+
+        let Ok(content) = clipboard.get_text() else {
+            continue;
+        };
+        last_sequence = current_sequence;
+        if last_seen.as_ref() == Some(&content) {
             continue;
         }
 
@@ -121,6 +128,25 @@ fn monitor_clipboard(app: AppHandle, state: DataState) {
             }
         }
     }
+}
+
+fn should_read_clipboard(last_sequence: Option<u32>, current_sequence: Option<u32>) -> bool {
+    match (last_sequence, current_sequence) {
+        (Some(last), Some(current)) => last != current,
+        _ => true,
+    }
+}
+
+#[cfg(windows)]
+fn clipboard_sequence_number() -> Option<u32> {
+    use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
+
+    Some(unsafe { GetClipboardSequenceNumber() })
+}
+
+#[cfg(not(windows))]
+fn clipboard_sequence_number() -> Option<u32> {
+    None
 }
 
 fn open_connection(path: &Path) -> Result<Connection, String> {
@@ -210,6 +236,52 @@ fn set_paused(state: &DataState, paused: bool) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
     state.paused.store(paused, Ordering::Relaxed);
     Ok(())
+}
+
+pub fn read_collapsed_position(app: &AppHandle) -> Result<Option<(i32, i32)>, String> {
+    let state = app.state::<DataState>();
+    let connection = open_connection(&state.db_path)?;
+    read_collapsed_position_from(&connection)
+}
+
+fn read_collapsed_position_from(connection: &Connection) -> Result<Option<(i32, i32)>, String> {
+    let read_value = |key: &str| -> Result<Option<i32>, String> {
+        let value = connection
+            .query_row("SELECT value FROM settings WHERE key = ?1", [key], |row| {
+                row.get::<_, String>(0)
+            })
+            .optional()
+            .map_err(|error| error.to_string())?;
+        Ok(value.and_then(|value| value.parse::<i32>().ok()))
+    };
+    Ok(
+        match (read_value("collapsed_x")?, read_value("collapsed_y")?) {
+            (Some(x), Some(y)) => Some((x, y)),
+            _ => None,
+        },
+    )
+}
+
+pub fn save_collapsed_position(app: &AppHandle, x: i32, y: i32) -> Result<(), String> {
+    let state = app.state::<DataState>();
+    let mut connection = open_connection(&state.db_path)?;
+    save_collapsed_position_to(&mut connection, x, y)
+}
+
+fn save_collapsed_position_to(connection: &mut Connection, x: i32, y: i32) -> Result<(), String> {
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    for (key, value) in [("collapsed_x", x), ("collapsed_y", y)] {
+        transaction
+            .execute(
+                "INSERT INTO settings(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, value.to_string()],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
 }
 
 pub fn toggle_capture(app: &AppHandle) -> Result<bool, String> {
@@ -575,6 +647,27 @@ mod tests {
         assert_eq!(classify_clip(r"C:\\Users\\clip.txt"), "path");
         assert_eq!(classify_clip("const answer = 42;\nanswer"), "code");
         assert_eq!(classify_clip("ordinary note"), "text");
+    }
+
+    #[test]
+    fn clipboard_is_opened_only_when_the_windows_sequence_changes() {
+        assert!(should_read_clipboard(None, Some(10)));
+        assert!(!should_read_clipboard(Some(10), Some(10)));
+        assert!(should_read_clipboard(Some(10), Some(11)));
+        assert!(should_read_clipboard(None, None));
+    }
+
+    #[test]
+    fn collapsed_window_position_round_trips_through_settings() {
+        let mut connection = test_connection();
+        assert_eq!(read_collapsed_position_from(&connection).unwrap(), None);
+
+        save_collapsed_position_to(&mut connection, 320, 180).unwrap();
+
+        assert_eq!(
+            read_collapsed_position_from(&connection).unwrap(),
+            Some((320, 180))
+        );
     }
 
     #[test]

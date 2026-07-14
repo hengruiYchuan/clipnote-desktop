@@ -9,7 +9,7 @@
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-2f6f68?style=flat-square)
 ![Tauri](https://img.shields.io/badge/Tauri-2.11-df6747?style=flat-square)
 ![React](https://img.shields.io/badge/React-19-26231f?style=flat-square)
-![Version](https://img.shields.io/badge/version-0.1.0-b68632?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.2.0-b68632?style=flat-square)
 
 </div>
 
@@ -18,18 +18,27 @@
   <img src="docs/images/clipnote-settings.png" width="48%" alt="ClipNote 设置界面" />
 </p>
 
+<p align="center">
+  <img src="docs/images/clipnote-pet.png" width="56" height="56" alt="ClipNote 原创纸片夹桌宠" />
+  <br />
+  <sub>收起后化身 56 x 56 的原创纸片夹桌宠</sub>
+</p>
+
 ## 为什么做 ClipNote
 
 复制过的命令、链接和临时文字经常只在几分钟内有用，却很容易被下一次复制覆盖。ClipNote 把这些工作碎片留在桌面边缘：需要时展开，不需要时缩成一个 `56 × 56` 图标，不占任务栏，也不打断当前工作。
 
 ## 功能
 
-- **自动采集文本剪贴板**：识别普通文本、链接、代码和文件路径。
+- **自动采集文本剪贴板**：识别普通文本、链接、代码和文件路径，不占用系统 `Ctrl + V`。
 - **本地资料库**：按时间浏览，支持搜索、收藏、再次复制和删除。
 - **长内容折叠**：长文本默认收起，可展开全文；预览高度支持 4、6、8 行。
 - **桌面便签**：创建、编辑和删除便签，正文过长时自动折叠。
 - **截图便签**：可粘贴、拖放或选择 PNG、JPEG、WebP、GIF 图片。
-- **轻量边缘形态**：收起后只保留一个图标，可拖动，也可隐藏到系统托盘。
+- **原创桌宠形态**：收起后化身 56 x 56 的纸片夹桌宠，带有克制的呼吸、眨眼和状态动效。
+- **位置记忆**：桌宠可自由拖动，重启后恢复到上次位置；显示器变化时自动回到可见区域。
+- **开机启动**：可在设置页选择登录 Windows 后自动启动，随时可以关闭。
+- **轻量常驻**：不占任务栏，支持右键隐藏到系统托盘。
 - **全局快捷键**：在其他应用中使用 `Ctrl + Alt + Space` 展开或收起。
 - **采集控制与设置**：随时暂停采集，显示偏好会自动保存在本机。
 
@@ -144,4 +153,4 @@ src-tauri/target/release/bundle/nsis/
 
 ## 当前版本
 
-ClipNote 目前处于 `0.1.0` 阶段，核心的剪贴板采集、搜索、收藏、便签、截图附件、长文本折叠、托盘和快捷键流程已经可用。欢迎通过 Issue 提交问题和建议。
+ClipNote `0.2.0` 加入原创纸片夹桌宠、位置记忆和可选的开机启动，并修复持续采集时可能干扰系统粘贴的问题。剪贴板采集、搜索、收藏、便签、截图附件、长文本折叠、托盘和快捷键流程均可使用。欢迎通过 Issue 提交问题和建议。

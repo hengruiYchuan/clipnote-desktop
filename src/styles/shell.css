@@ -3,31 +3,29 @@
   inset: 0;
   width: 56px;
   height: 56px;
-  filter: drop-shadow(0 7px 12px rgb(20 20 18 / 24%));
+  filter: drop-shadow(0 6px 9px rgb(20 20 18 / 22%));
 }
 
 .edge-tab__open {
   position: relative;
   width: 100%;
   height: 100%;
-  border: 1px solid rgb(255 255 255 / 14%);
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--ink-strong);
+  background: transparent;
   display: grid;
   place-items: center;
   padding: 0;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+  box-shadow: none;
   cursor: grab;
   touch-action: none;
   user-select: none;
   transition:
-    background-color var(--duration-fast) ease,
     transform var(--duration-fast) var(--ease-paper);
 }
 
 .edge-tab__open:hover {
-  background: color-mix(in srgb, var(--ink-strong), white 8%);
-  transform: translateY(-1px);
+  transform: translateY(-2px) rotate(-2deg);
 }
 
 .edge-tab__open:active {
@@ -35,11 +33,85 @@
   transform: scale(.97);
 }
 
-.edge-tab__open > svg {
-  width: 24px;
-  height: 24px;
-  color: var(--paper-sheet);
-  stroke-width: 1.7;
+.clip-pet {
+  width: 54px;
+  height: 54px;
+  overflow: visible;
+  color: var(--focus);
+  transform-origin: 50% 72%;
+  animation: clip-pet-breathe 3.2s ease-in-out infinite;
+}
+
+.clip-pet__body {
+  fill: #fffdf6;
+  stroke: var(--ink-strong);
+  stroke-width: 2.2;
+}
+
+.clip-pet__fold {
+  fill: var(--paper-mint);
+  stroke: var(--ink-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.clip-pet__clip {
+  stroke: var(--accent);
+}
+
+.clip-pet__tail {
+  transform-origin: 42px 38px;
+  animation: clip-pet-tail 2.4s ease-in-out infinite;
+}
+
+.clip-pet__face {
+  color: var(--ink-strong);
+}
+
+.clip-pet__eyes {
+  fill: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: clip-pet-blink 5s ease-in-out infinite;
+}
+
+.clip-pet__eye-glint {
+  fill: #fffdf6;
+}
+
+.clip-pet__rest-eyes,
+.clip-pet__mouth {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.clip-pet__rest-eyes {
+  display: none;
+}
+
+.clip-pet__cheek {
+  fill: var(--accent);
+  opacity: .55;
+}
+
+.clip-pet[data-paused] {
+  animation-duration: 4.8s;
+  filter: saturate(.65);
+}
+
+.clip-pet[data-paused] .clip-pet__eyes {
+  display: none;
+}
+
+.clip-pet[data-paused] .clip-pet__rest-eyes {
+  display: block;
+}
+
+.clip-pet[data-paused] .clip-pet__tail {
+  animation: none;
 }
 
 .edge-tab .status {
@@ -53,8 +125,31 @@
 .edge-tab .status__dot {
   width: 6px;
   height: 6px;
-  border: 1px solid color-mix(in srgb, var(--ink-strong), white 18%);
-  box-shadow: 0 0 0 2px var(--ink-strong);
+  border: 1px solid #fffdf6;
+  box-shadow: 0 0 0 1px var(--ink-strong);
+}
+
+@keyframes clip-pet-breathe {
+  0%, 100% { transform: translateY(1px) scale(1); }
+  50% { transform: translateY(-1px) scale(1.015); }
+}
+
+@keyframes clip-pet-tail {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(8deg); }
+}
+
+@keyframes clip-pet-blink {
+  0%, 45%, 49%, 100% { transform: scaleY(1); }
+  47% { transform: scaleY(.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clip-pet,
+  .clip-pet__tail,
+  .clip-pet__eyes {
+    animation: none;
+  }
 }
 
 .workspace {

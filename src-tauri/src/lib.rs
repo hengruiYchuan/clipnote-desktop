@@ -3,11 +3,28 @@ mod shortcuts;
 mod tray;
 mod window;
 
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let position_sender = window::start_position_tracking();
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
+        .on_window_event(move |window, event| {
+            if window.label() != "main" {
+                return;
+            }
+            if let WindowEvent::Moved(position) = event {
+                let is_collapsed = window
+                    .outer_size()
+                    .map(|size| size.width <= 80 && size.height <= 80)
+                    .unwrap_or(false);
+                if is_collapsed {
+                    let _ =
+                        position_sender.send((window.app_handle().clone(), position.x, position.y));
+                }
+            }
+        })
         .setup(|app| {
             let data_state = data::initialize(app.handle()).map_err(std::io::Error::other)?;
             app.manage(data_state);

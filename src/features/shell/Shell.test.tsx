@@ -19,6 +19,8 @@ vi.mock("../../bridge/desktopBridge", () => ({
     listNotes: vi.fn(),
     getCapturePaused: vi.fn(),
     setCapturePaused: vi.fn(),
+    getAutostartEnabled: vi.fn(),
+    setAutostartEnabled: vi.fn(),
   },
 }));
 
@@ -34,6 +36,8 @@ beforeEach(() => {
   vi.mocked(desktopBridge.listClips).mockResolvedValue([sampleClip]);
   vi.mocked(desktopBridge.listNotes).mockResolvedValue([]);
   vi.mocked(desktopBridge.getCapturePaused).mockResolvedValue(false);
+  vi.mocked(desktopBridge.getAutostartEnabled).mockResolvedValue(false);
+  vi.mocked(desktopBridge.setAutostartEnabled).mockResolvedValue();
 });
 
 describe("desktop shell", () => {
@@ -41,6 +45,7 @@ describe("desktop shell", () => {
     const user = userEvent.setup();
     render(<App />);
 
+    expect(screen.getByTestId("clip-pet")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "打开 ClipNote 工作台" }));
 
     expect(desktopBridge.expand).toHaveBeenCalledOnce();

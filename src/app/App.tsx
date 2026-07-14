@@ -23,6 +23,7 @@ export function App() {
   const [clips, setClips] = useState<ClipItem[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [paused, setPaused] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
@@ -75,12 +76,14 @@ export function App() {
       desktopBridge.listClips(),
       desktopBridge.listNotes(),
       desktopBridge.getCapturePaused(),
+      desktopBridge.getAutostartEnabled(),
     ])
-      .then(([nextClips, nextNotes, capturePaused]) => {
+      .then(([nextClips, nextNotes, capturePaused, nextAutostartEnabled]) => {
         if (!mounted) return;
         setClips(nextClips);
         setNotes(nextNotes);
         setPaused(capturePaused);
+        setAutostartEnabled(nextAutostartEnabled);
       })
       .catch((error) => showMessage(toMessage(error), true))
       .finally(() => {
@@ -175,9 +178,18 @@ export function App() {
       ) : section === "settings" ? (
         <SettingsPanel
           paused={paused}
+          autostartEnabled={autostartEnabled}
           busy={busy}
           preferences={preferences}
           onChangePreferences={setPreferences}
+          onToggleAutostart={() => {
+            const nextEnabled = !autostartEnabled;
+            void run(
+              () => desktopBridge.setAutostartEnabled(nextEnabled),
+              nextEnabled ? "已开启开机启动" : "已关闭开机启动",
+              async () => setAutostartEnabled(nextEnabled),
+            );
+          }}
           onToggleCapture={() => {
             void run(
               () => desktopBridge.setCapturePaused(!paused),

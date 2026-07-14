@@ -1,4 +1,9 @@
 use serde::Serialize;
+use std::{
+    sync::mpsc::{self, RecvTimeoutError, Sender},
+    thread,
+    time::Duration,
+};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 const MAIN_WINDOW: &str = "main";
@@ -28,6 +33,21 @@ pub fn collapsed_geometry(area: WorkArea, _scale: f64) -> Geometry {
     Geometry {
         x: area.x + area.width as i32 - COLLAPSED_WIDTH as i32 - EDGE_MARGIN,
         y: area.y + (area.height as i32 - COLLAPSED_HEIGHT as i32) / 2,
+        width: COLLAPSED_WIDTH,
+        height: COLLAPSED_HEIGHT,
+    }
+}
+
+pub fn collapsed_geometry_at(area: WorkArea, position: Option<(i32, i32)>) -> Geometry {
+    let default = collapsed_geometry(area, 1.0);
+    let Some((x, y)) = position else {
+        return default;
+    };
+    let maximum_x = area.x + area.width.saturating_sub(COLLAPSED_WIDTH) as i32;
+    let maximum_y = area.y + area.height.saturating_sub(COLLAPSED_HEIGHT) as i32;
+    Geometry {
+        x: x.clamp(area.x, maximum_x),
+        y: y.clamp(area.y, maximum_y),
         width: COLLAPSED_WIDTH,
         height: COLLAPSED_HEIGHT,
     }
@@ -63,6 +83,63 @@ fn current_work_area(app: &AppHandle) -> Result<(WorkArea, f64), String> {
         },
         monitor.scale_factor(),
     ))
+}
+
+fn work_area_for_position(
+    app: &AppHandle,
+    position: (i32, i32),
+) -> Result<Option<WorkArea>, String> {
+    let window = app
+        .get_webview_window(MAIN_WINDOW)
+        .ok_or_else(|| "main window is unavailable".to_string())?;
+    let center = (
+        position.0 + COLLAPSED_WIDTH as i32 / 2,
+        position.1 + COLLAPSED_HEIGHT as i32 / 2,
+    );
+    let monitors = window
+        .available_monitors()
+        .map_err(|error| error.to_string())?;
+    Ok(monitors.into_iter().find_map(|monitor| {
+        let monitor_position = monitor.position();
+        let size = monitor.size();
+        let inside = center.0 >= monitor_position.x
+            && center.0 < monitor_position.x + size.width as i32
+            && center.1 >= monitor_position.y
+            && center.1 < monitor_position.y + size.height as i32;
+        inside.then_some(WorkArea {
+            x: monitor_position.x,
+            y: monitor_position.y,
+            width: size.width,
+            height: size.height,
+        })
+    }))
+}
+
+pub fn start_position_tracking() -> Sender<(AppHandle, i32, i32)> {
+    let (sender, receiver) = mpsc::channel::<(AppHandle, i32, i32)>();
+    thread::Builder::new()
+        .name("clipnote-window-position".into())
+        .spawn(move || {
+            while let Ok(mut latest) = receiver.recv() {
+                loop {
+                    match receiver.recv_timeout(Duration::from_millis(350)) {
+                        Ok(next) => latest = next,
+                        Err(RecvTimeoutError::Timeout) => {
+                            let _ =
+                                crate::data::save_collapsed_position(&latest.0, latest.1, latest.2);
+                            break;
+                        }
+                        Err(RecvTimeoutError::Disconnected) => {
+                            let _ =
+                                crate::data::save_collapsed_position(&latest.0, latest.1, latest.2);
+                            return;
+                        }
+                    }
+                }
+            }
+        })
+        .expect("failed to start window position tracker");
+    sender
 }
 
 fn apply_geometry(app: &AppHandle, geometry: Geometry) -> Result<(), String> {
@@ -105,8 +182,13 @@ pub fn expand_main_window(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn collapse_main_window(app: AppHandle) -> Result<(), String> {
-    let (area, scale) = current_work_area(&app)?;
-    apply_geometry(&app, collapsed_geometry(area, scale))?;
+    let saved_position = crate::data::read_collapsed_position(&app)?;
+    let (current_area, _) = current_work_area(&app)?;
+    let area = match saved_position {
+        Some(position) => work_area_for_position(&app, position)?.unwrap_or(current_area),
+        None => current_area,
+    };
+    apply_geometry(&app, collapsed_geometry_at(area, saved_position))?;
     app.emit("shell-mode-changed", "collapsed")
         .map_err(|error| error.to_string())
 }
@@ -181,6 +263,25 @@ mod tests {
                 y: 40,
                 width: 648,
                 height: 1000,
+            }
+        );
+    }
+
+    #[test]
+    fn saved_collapsed_position_is_clamped_to_the_visible_area() {
+        let area = WorkArea {
+            x: 100,
+            y: 200,
+            width: 800,
+            height: 600,
+        };
+        assert_eq!(
+            collapsed_geometry_at(area, Some((9999, 50))),
+            Geometry {
+                x: 844,
+                y: 200,
+                width: 56,
+                height: 56,
             }
         );
     }

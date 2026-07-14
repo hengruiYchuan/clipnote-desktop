@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import {
+  disable as disableAutostart,
+  enable as enableAutostart,
+  isEnabled as isAutostartEnabled,
+} from "@tauri-apps/plugin-autostart";
 import type { ShellMode } from "../features/shell/useShellStore";
 import type { ClipItem, Note, NoteInput } from "../types/content";
 
@@ -25,6 +30,7 @@ type BrowserState = {
 };
 
 const browserStorageKey = "clipnote-browser-data-v1";
+const browserAutostartKey = "clipnote-browser-autostart-v1";
 const browserListeners = {
   clips: new Set<() => void>(),
   capture: new Set<(paused: boolean) => void>(),
@@ -78,6 +84,18 @@ export const desktopBridge = {
   startDragging: () => call("start_drag_main_window"),
   hide: () => call("hide_main_window"),
   toggle: () => call("toggle_main_window"),
+  getAutostartEnabled: () =>
+    isTauri()
+      ? isAutostartEnabled()
+      : Promise.resolve(window.localStorage.getItem(browserAutostartKey) === "true"),
+  setAutostartEnabled: async (enabled: boolean) => {
+    if (isTauri()) {
+      if (enabled) await enableAutostart();
+      else await disableAutostart();
+      return;
+    }
+    window.localStorage.setItem(browserAutostartKey, String(enabled));
+  },
   onModeChanged: async (
     handler: (mode: ShellMode) => void,
   ): Promise<UnlistenFn> => {

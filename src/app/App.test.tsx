@@ -12,6 +12,8 @@ const bridge = vi.hoisted(() => ({
   listNotes: vi.fn(),
   getCapturePaused: vi.fn(),
   setCapturePaused: vi.fn(),
+  getAutostartEnabled: vi.fn(),
+  setAutostartEnabled: vi.fn(),
   setClipFavorite: vi.fn(),
   copyClip: vi.fn(),
   deleteClip: vi.fn(),
@@ -39,6 +41,8 @@ beforeEach(() => {
   bridge.listNotes.mockResolvedValue([sampleNote]);
   bridge.getCapturePaused.mockResolvedValue(false);
   bridge.setCapturePaused.mockResolvedValue(undefined);
+  bridge.getAutostartEnabled.mockResolvedValue(false);
+  bridge.setAutostartEnabled.mockResolvedValue(undefined);
 });
 
 describe("App", () => {
@@ -74,6 +78,17 @@ describe("App", () => {
     expect(window.localStorage.getItem("clipnote.preferences.v1")).toContain(
       '"previewLines":4',
     );
+  });
+
+  it("toggles native autostart from settings", async () => {
+    useShellStore.setState({ mode: "expanded", section: "settings" });
+    const user = userEvent.setup();
+    render(<App />);
+
+    const toggle = await screen.findByRole("checkbox", { name: /开机时启动 ClipNote/ });
+    await user.click(toggle);
+
+    await waitFor(() => expect(bridge.setAutostartEnabled).toHaveBeenCalledWith(true));
   });
 
   it("updates capture state through the native bridge", async () => {

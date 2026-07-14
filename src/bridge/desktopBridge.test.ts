@@ -2,14 +2,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.fn();
 const listen = vi.fn();
+const enableAutostart = vi.fn();
+const disableAutostart = vi.fn();
+const isAutostartEnabled = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen }));
+vi.mock("@tauri-apps/plugin-autostart", () => ({
+  enable: enableAutostart,
+  disable: disableAutostart,
+  isEnabled: isAutostartEnabled,
+}));
 
 describe("desktop bridge", () => {
   beforeEach(() => {
     vi.resetModules();
     invoke.mockReset();
     listen.mockReset();
+    enableAutostart.mockReset();
+    disableAutostart.mockReset();
+    isAutostartEnabled.mockReset();
   });
 
   it("invokes the native expand command inside Tauri", async () => {
@@ -95,5 +106,21 @@ describe("desktop bridge", () => {
 
     await expect(desktopBridge.collapse()).resolves.toBeUndefined();
     await expect(desktopBridge.onModeChanged(vi.fn())).resolves.toBeTypeOf("function");
+  });
+
+  it("uses the native autostart plugin inside Tauri", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    isAutostartEnabled.mockResolvedValue(true);
+    enableAutostart.mockResolvedValue(undefined);
+    const { desktopBridge } = await import("./desktopBridge");
+
+    await expect(desktopBridge.getAutostartEnabled()).resolves.toBe(true);
+    await desktopBridge.setAutostartEnabled(true);
+
+    expect(isAutostartEnabled).toHaveBeenCalledOnce();
+    expect(enableAutostart).toHaveBeenCalledOnce();
   });
 });

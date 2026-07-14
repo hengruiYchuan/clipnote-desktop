@@ -1,19 +1,23 @@
-import { Database, Eye, ScanText } from "lucide-react";
+import { Database, Eye, Power, ScanText } from "lucide-react";
 import type { ClipPreferences, PreviewLines } from "./preferences";
 
 const lineOptions: PreviewLines[] = [4, 6, 8];
 
 export function SettingsPanel({
   paused,
+  autostartEnabled,
   busy,
   preferences,
   onToggleCapture,
+  onToggleAutostart,
   onChangePreferences,
 }: {
   paused: boolean;
+  autostartEnabled: boolean;
   busy: boolean;
   preferences: ClipPreferences;
   onToggleCapture: () => void;
+  onToggleAutostart: () => void;
   onChangePreferences: (preferences: ClipPreferences) => void;
 }) {
   return (
@@ -37,6 +41,25 @@ export function SettingsPanel({
             checked={!paused}
             disabled={busy}
             onChange={onToggleCapture}
+          />
+          <span className="setting-switch" aria-hidden="true" />
+        </label>
+      </div>
+
+      <div className="settings-panel__section">
+        <h3>启动</h3>
+        <label className="setting-row">
+          <Power aria-hidden="true" />
+          <span className="setting-row__copy">
+            <strong>开机时启动 ClipNote</strong>
+            <small>登录 Windows 后让桌宠在桌面边缘待命</small>
+          </span>
+          <input
+            className="setting-switch__input"
+            type="checkbox"
+            checked={autostartEnabled}
+            disabled={busy}
+            onChange={onToggleAutostart}
           />
           <span className="setting-switch" aria-hidden="true" />
         </label>
