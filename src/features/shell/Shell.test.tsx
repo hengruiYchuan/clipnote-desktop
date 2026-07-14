@@ -58,18 +58,22 @@ describe("desktop shell", () => {
     expect(screen.getByRole("button", { name: "打开 ClipNote 工作台" })).toBeVisible();
   });
 
-  it("drags and hides without expanding the edge tab", async () => {
+  it("opens, drags, and hides from the single compact control", async () => {
     const user = userEvent.setup();
     vi.mocked(desktopBridge.expand).mockClear();
     render(<App />);
+    const entry = screen.getByRole("button", { name: "打开 ClipNote 工作台" });
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: "拖动 ClipNote" }), {
-      button: 0,
-    });
-    await user.click(screen.getByRole("button", { name: "隐藏 ClipNote" }));
+    fireEvent.pointerDown(entry, { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(entry, { clientX: 20, clientY: 10 });
+    fireEvent.pointerUp(entry, { button: 0, clientX: 20, clientY: 10 });
+    fireEvent.contextMenu(entry);
 
     expect(desktopBridge.startDragging).toHaveBeenCalledOnce();
     expect(desktopBridge.hide).toHaveBeenCalledOnce();
     expect(desktopBridge.expand).not.toHaveBeenCalled();
+
+    await user.click(entry);
+    expect(desktopBridge.expand).toHaveBeenCalledOnce();
   });
 });
