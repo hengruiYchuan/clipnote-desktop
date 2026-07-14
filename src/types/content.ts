@@ -18,6 +18,7 @@ export type Note = {
   title: string;
   body: string;
   tone: NoteTone;
+  imageData: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -26,4 +27,5 @@ export type NoteInput = {
   title: string;
   body: string;
   tone: NoteTone;
+  imageData: string;
 };

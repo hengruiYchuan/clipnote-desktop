@@ -240,6 +240,46 @@
   line-height: 1.65;
 }
 
+.note-sheet__image {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  margin: 0 0 var(--space-3);
+  border: 1px solid rgb(38 35 31 / 22%);
+  border-radius: var(--radius-sm);
+  background: rgb(38 35 31 / 7%);
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.note-sheet__image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.note-sheet__image > svg {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--ink-strong);
+  padding: 6px;
+  color: var(--paper-sheet);
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.note-sheet__image:hover > svg,
+.note-sheet__image:focus-visible > svg {
+  opacity: 1;
+}
+
 .note-sheet__confirm {
   display: flex;
   align-items: center;
@@ -335,6 +375,122 @@
 .note-editor textarea:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus), transparent 84%);
+}
+
+.note-editor__attachment {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.note-editor__attachment-heading {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.note-editor__attachment-heading button,
+.note-editor__image-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  color: var(--ink-body);
+  cursor: pointer;
+}
+
+.note-editor__attachment-heading button {
+  min-height: 30px;
+  padding: 4px 9px;
+}
+
+.note-editor__attachment-heading svg,
+.note-editor__image-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.note-editor__image-add {
+  width: 100%;
+  min-height: 68px;
+  border-style: dashed;
+}
+
+.note-editor__image-add:hover {
+  border-color: var(--focus);
+  background: color-mix(in srgb, var(--paper-raised), var(--paper-mint) 28%);
+}
+
+.note-editor__image-preview {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-height: 220px;
+  aspect-ratio: 16 / 9;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: rgb(38 35 31 / 6%);
+}
+
+.note-editor__image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.note-editor__image-preview .icon-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--paper-sheet);
+  border-color: var(--rule);
+  box-shadow: 0 3px 10px rgb(38 35 31 / 18%);
+}
+
+.note-image-viewer {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  background: rgb(20 20 18 / 88%);
+  padding: var(--space-4);
+}
+
+.note-image-viewer header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--paper-sheet);
+}
+
+.note-image-viewer header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-image-viewer .icon-button {
+  flex: 0 0 auto;
+  color: var(--paper-sheet);
+}
+
+.note-image-viewer > img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
 }
 
 .note-editor__tones {

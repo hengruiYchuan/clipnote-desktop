@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Edit3, PenLine, Save, Trash2, X } from "lucide-react";
+import { Check, Edit3, ImagePlus, Maximize2, PenLine, Save, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
 import { IconButton } from "../../components/IconButton";
 import type { Note, NoteInput, NoteTone } from "../../types/content";
@@ -30,6 +30,7 @@ export function NotesPanel({
   onDelete,
 }: NotesPanelProps) {
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const [previewingNote, setPreviewingNote] = useState<Note | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = notes.filter((note) =>
     `${note.title} ${note.body}`.toLocaleLowerCase().includes(normalizedQuery),
@@ -70,6 +71,17 @@ export function NotesPanel({
                 </IconButton>
               </div>
             </div>
+            {note.imageData && (
+              <button
+                className="note-sheet__image"
+                type="button"
+                aria-label={`查看截图：${note.title}`}
+                onClick={() => setPreviewingNote(note)}
+              >
+                <img src={note.imageData} alt="" />
+                <Maximize2 aria-hidden="true" />
+              </button>
+            )}
             {note.body && <p>{note.body}</p>}
             {pendingDelete === note.id && (
               <div className="note-sheet__confirm" role="alert">
@@ -98,8 +110,45 @@ export function NotesPanel({
           onSave={onSave}
         />
       )}
+      {previewingNote && (
+        <div
+          className="note-image-viewer"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`截图：${previewingNote.title}`}
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setPreviewingNote(null);
+          }}
+        >
+          <header>
+            <span>{previewingNote.title}</span>
+            <IconButton label="关闭截图预览" onClick={() => setPreviewingNote(null)}>
+              <X aria-hidden="true" />
+            </IconButton>
+          </header>
+          <img src={previewingNote.imageData} alt={`便签截图：${previewingNote.title}`} />
+        </div>
+      )}
     </section>
   );
+}
+
+const MAX_IMAGE_FILE_BYTES = 4 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+function readNoteImage(file: File) {
+  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+    return Promise.reject(new Error("仅支持 PNG、JPEG、WebP 或 GIF 图片"));
+  }
+  if (file.size > MAX_IMAGE_FILE_BYTES) {
+    return Promise.reject(new Error("图片不能超过 4 MB"));
+  }
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result)));
+    reader.addEventListener("error", () => reject(new Error("图片读取失败")));
+    reader.readAsDataURL(file);
+  });
 }
 
 function NoteEditor({
@@ -116,21 +165,32 @@ function NoteEditor({
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
   const [tone, setTone] = useState<NoteTone>(note?.tone ?? "paper");
+  const [imageData, setImageData] = useState(note?.imageData ?? "");
   const [validation, setValidation] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
 
+  const attachImage = async (file: File) => {
+    try {
+      setImageData(await readNoteImage(file));
+      setValidation("");
+    } catch (error) {
+      setValidation(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!title.trim() && !body.trim()) {
+    if (!title.trim() && !body.trim() && !imageData) {
       setValidation("便签内容不能为空");
       return;
     }
     setValidation("");
-    await onSave({ title, body, tone });
+    await onSave({ title, body, tone, imageData });
   };
 
   return (
@@ -143,6 +203,21 @@ function NoteEditor({
         aria-modal="true"
         aria-labelledby="note-editor-title"
         onSubmit={(event) => void submit(event)}
+        onPaste={(event) => {
+          const image = Array.from(event.clipboardData.items)
+            .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+            ?.getAsFile();
+          if (!image) return;
+          event.preventDefault();
+          void attachImage(image);
+        }}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          const image = Array.from(event.dataTransfer.files)
+            .find((file) => file.type.startsWith("image/"));
+          if (image) void attachImage(image);
+        }}
       >
         <header>
           <h2 id="note-editor-title">{note ? "编辑便签" : "新建便签"}</h2>
@@ -167,6 +242,46 @@ function NoteEditor({
             onChange={(event) => setBody(event.target.value)}
           />
         </label>
+        <section className="note-editor__attachment" aria-labelledby="note-attachment-title">
+          <div className="note-editor__attachment-heading">
+            <span id="note-attachment-title">截图</span>
+            {imageData && (
+              <button type="button" onClick={() => imageInputRef.current?.click()}>
+                <ImagePlus aria-hidden="true" />
+                更换图片
+              </button>
+            )}
+          </div>
+          <input
+            ref={imageInputRef}
+            className="sr-only"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            aria-label="选择截图文件"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void attachImage(file);
+            }}
+          />
+          {imageData ? (
+            <div className="note-editor__image-preview">
+              <img src={imageData} alt="便签截图预览" />
+              <IconButton label="移除截图" onClick={() => setImageData("")}>
+                <Trash2 aria-hidden="true" />
+              </IconButton>
+            </div>
+          ) : (
+            <button
+              className="note-editor__image-add"
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+            >
+              <ImagePlus aria-hidden="true" />
+              添加图片
+            </button>
+          )}
+        </section>
         <fieldset className="note-editor__tones">
           <legend>便签颜色</legend>
           {(["paper", "sun", "mint"] as const).map((value) => (

@@ -33,7 +33,14 @@ const browserListeners = {
 function readBrowserState(): BrowserState {
   try {
     const stored = window.localStorage.getItem(browserStorageKey);
-    if (stored) return JSON.parse(stored) as BrowserState;
+    if (stored) {
+      const state = JSON.parse(stored) as BrowserState;
+      state.notes = state.notes.map((note) => ({
+        ...note,
+        imageData: note.imageData ?? "",
+      }));
+      return state;
+    }
   } catch {
     // Browser preview remains usable when storage is unavailable.
   }
@@ -143,9 +150,13 @@ export const desktopBridge = {
       const timestamp = Math.floor(Date.now() / 1000);
       const note: Note = {
         id: nextBrowserId(state.notes),
-        title: input.title.trim() || input.body.trim().split(/\r?\n/, 1)[0] || "未命名便签",
+        title:
+          input.title.trim() ||
+          input.body.trim().split(/\r?\n/, 1)[0] ||
+          (input.imageData ? "图片便签" : "未命名便签"),
         body: input.body.trim(),
         tone: input.tone,
+        imageData: input.imageData,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
@@ -161,7 +172,10 @@ export const desktopBridge = {
       const note = {
         ...state.notes[index],
         ...input,
-        title: input.title.trim() || input.body.trim().split(/\r?\n/, 1)[0] || "未命名便签",
+        title:
+          input.title.trim() ||
+          input.body.trim().split(/\r?\n/, 1)[0] ||
+          (input.imageData ? "图片便签" : "未命名便签"),
         body: input.body.trim(),
         updatedAt: Math.floor(Date.now() / 1000),
       };

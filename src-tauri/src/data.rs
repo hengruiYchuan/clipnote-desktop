@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 const MAX_CLIP_BYTES: usize = 256 * 1024;
 const MAX_NOTE_BYTES: usize = 256 * 1024;
+const MAX_NOTE_IMAGE_BYTES: usize = 6 * 1024 * 1024;
 const CLIPBOARD_POLL_INTERVAL: Duration = Duration::from_millis(650);
 
 #[derive(Clone)]
@@ -49,6 +50,7 @@ pub struct Note {
     title: String,
     body: String,
     tone: String,
+    image_data: String,
     created_at: i64,
     updated_at: i64,
 }
@@ -59,6 +61,8 @@ pub struct NoteInput {
     title: String,
     body: String,
     tone: String,
+    #[serde(default)]
+    image_data: String,
 }
 
 pub fn initialize(app: &AppHandle) -> Result<DataState, String> {
@@ -148,6 +152,7 @@ fn initialize_schema(connection: &Connection) -> Result<(), String> {
                title TEXT NOT NULL,
                body TEXT NOT NULL,
                tone TEXT NOT NULL,
+               image_data TEXT NOT NULL DEFAULT '',
                created_at INTEGER NOT NULL,
                updated_at INTEGER NOT NULL
              );
@@ -158,7 +163,28 @@ fn initialize_schema(connection: &Connection) -> Result<(), String> {
                value TEXT NOT NULL
              );",
         )
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    ensure_note_image_column(connection)
+}
+
+fn ensure_note_image_column(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(notes)")
+        .map_err(|error| error.to_string())?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    if !columns.iter().any(|column| column == "image_data") {
+        connection
+            .execute(
+                "ALTER TABLE notes ADD COLUMN image_data TEXT NOT NULL DEFAULT ''",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn read_paused(connection: &Connection) -> Result<bool, String> {
@@ -339,7 +365,7 @@ pub fn list_notes(state: State<'_, DataState>) -> Result<Vec<Note>, String> {
 fn list_notes_from(connection: &Connection) -> Result<Vec<Note>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, title, body, tone, created_at, updated_at
+            "SELECT id, title, body, tone, image_data, created_at, updated_at
              FROM notes ORDER BY updated_at DESC, id DESC",
         )
         .map_err(|error| error.to_string())?;
@@ -357,21 +383,22 @@ fn note_from_row(row: &Row<'_>) -> rusqlite::Result<Note> {
         title: row.get(1)?,
         body: row.get(2)?,
         tone: row.get(3)?,
-        created_at: row.get(4)?,
-        updated_at: row.get(5)?,
+        image_data: row.get(4)?,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
     })
 }
 
 #[tauri::command]
 pub fn create_note(state: State<'_, DataState>, input: NoteInput) -> Result<Note, String> {
     let connection = open_connection(&state.db_path)?;
-    let (title, body, tone) = validate_note(input)?;
+    let (title, body, tone, image_data) = validate_note(input)?;
     let timestamp = now_timestamp();
     connection
         .execute(
-            "INSERT INTO notes(title, body, tone, created_at, updated_at)
-             VALUES(?1, ?2, ?3, ?4, ?4)",
-            params![title, body, tone, timestamp],
+            "INSERT INTO notes(title, body, tone, image_data, created_at, updated_at)
+             VALUES(?1, ?2, ?3, ?4, ?5, ?5)",
+            params![title, body, tone, image_data, timestamp],
         )
         .map_err(|error| error.to_string())?;
     note_by_id(&connection, connection.last_insert_rowid())
@@ -380,12 +407,12 @@ pub fn create_note(state: State<'_, DataState>, input: NoteInput) -> Result<Note
 #[tauri::command]
 pub fn update_note(state: State<'_, DataState>, id: i64, input: NoteInput) -> Result<Note, String> {
     let connection = open_connection(&state.db_path)?;
-    let (title, body, tone) = validate_note(input)?;
+    let (title, body, tone, image_data) = validate_note(input)?;
     let changed = connection
         .execute(
-            "UPDATE notes SET title = ?1, body = ?2, tone = ?3, updated_at = ?4
-             WHERE id = ?5",
-            params![title, body, tone, now_timestamp(), id],
+            "UPDATE notes SET title = ?1, body = ?2, tone = ?3, image_data = ?4,
+             updated_at = ?5 WHERE id = ?6",
+            params![title, body, tone, image_data, now_timestamp(), id],
         )
         .map_err(|error| error.to_string())?;
     require_changed(changed, "便签不存在")?;
@@ -404,7 +431,7 @@ pub fn delete_note(state: State<'_, DataState>, id: i64) -> Result<(), String> {
 fn note_by_id(connection: &Connection, id: i64) -> Result<Note, String> {
     connection
         .query_row(
-            "SELECT id, title, body, tone, created_at, updated_at
+            "SELECT id, title, body, tone, image_data, created_at, updated_at
              FROM notes WHERE id = ?1",
             [id],
             note_from_row,
@@ -412,24 +439,45 @@ fn note_by_id(connection: &Connection, id: i64) -> Result<Note, String> {
         .map_err(|error| error.to_string())
 }
 
-fn validate_note(input: NoteInput) -> Result<(String, String, String), String> {
+fn validate_note(input: NoteInput) -> Result<(String, String, String, String), String> {
     if input.body.len() > MAX_NOTE_BYTES {
         return Err("便签内容过长".into());
     }
+    if input.image_data.len() > MAX_NOTE_IMAGE_BYTES {
+        return Err("截图大小超过限制".into());
+    }
+    let image_data = input.image_data.trim().to_string();
+    let supported_image = [
+        "data:image/png;base64,",
+        "data:image/jpeg;base64,",
+        "data:image/webp;base64,",
+        "data:image/gif;base64,",
+    ];
+    if !image_data.is_empty()
+        && !supported_image
+            .iter()
+            .any(|prefix| image_data.starts_with(prefix))
+    {
+        return Err("截图格式不支持".into());
+    }
     let body = input.body.trim().to_string();
     let title = if input.title.trim().is_empty() {
-        derive_title(&body)
+        if body.is_empty() && !image_data.is_empty() {
+            "图片便签".into()
+        } else {
+            derive_title(&body)
+        }
     } else {
         truncate_chars(input.title.trim(), 80)
     };
-    if title.is_empty() && body.is_empty() {
+    if title.is_empty() && body.is_empty() && image_data.is_empty() {
         return Err("便签内容不能为空".into());
     }
     let tone = match input.tone.as_str() {
         "sun" | "mint" | "paper" => input.tone,
         _ => "paper".into(),
     };
-    Ok((title, body, tone))
+    Ok((title, body, tone, image_data))
 }
 
 fn classify_clip(content: &str) -> &'static str {
@@ -532,17 +580,18 @@ mod tests {
     #[test]
     fn notes_can_be_created_updated_and_deleted() {
         let connection = test_connection();
-        let (title, body, tone) = validate_note(NoteInput {
+        let (title, body, tone, image_data) = validate_note(NoteInput {
             title: "".into(),
             body: "First line\nDetails".into(),
             tone: "sun".into(),
+            image_data: "".into(),
         })
         .unwrap();
         connection
             .execute(
-                "INSERT INTO notes(title, body, tone, created_at, updated_at)
-                 VALUES(?1, ?2, ?3, 1, 1)",
-                params![title, body, tone],
+                "INSERT INTO notes(title, body, tone, image_data, created_at, updated_at)
+                 VALUES(?1, ?2, ?3, ?4, 1, 1)",
+                params![title, body, tone, image_data],
             )
             .unwrap();
         let id = connection.last_insert_rowid();
@@ -559,5 +608,43 @@ mod tests {
             .execute("DELETE FROM notes WHERE id = ?1", [id])
             .unwrap();
         assert!(list_notes_from(&connection).unwrap().is_empty());
+    }
+
+    #[test]
+    fn image_only_notes_are_valid_and_legacy_tables_are_migrated() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE notes (
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   title TEXT NOT NULL,
+                   body TEXT NOT NULL,
+                   tone TEXT NOT NULL,
+                   created_at INTEGER NOT NULL,
+                   updated_at INTEGER NOT NULL
+                 );",
+            )
+            .unwrap();
+        initialize_schema(&connection).unwrap();
+
+        let columns = connection
+            .prepare("PRAGMA table_info(notes)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(columns.iter().any(|column| column == "image_data"));
+
+        let (title, body, _, image_data) = validate_note(NoteInput {
+            title: "".into(),
+            body: "".into(),
+            tone: "paper".into(),
+            image_data: "data:image/png;base64,iVBORw0KGgo=".into(),
+        })
+        .unwrap();
+        assert_eq!(title, "图片便签");
+        assert!(body.is_empty());
+        assert!(image_data.starts_with("data:image/png;base64,"));
     }
 }

@@ -16,6 +16,7 @@ export const sampleNote: Note = {
   title: "MVP 边界",
   body: "剪贴板、便签、搜索、本地优先。",
   tone: "sun",
+  imageData: "",
   createdAt: 1_700_000_000,
   updatedAt: 1_700_000_000,
 };
