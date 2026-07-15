@@ -58,6 +58,18 @@ describe("LibraryPanel", () => {
     );
     expect(preview).not.toHaveAttribute("data-collapsed");
   });
+
+  it("confirms before deleting every unfavorited clip", async () => {
+    const onDeleteUnfavorited = vi.fn();
+    const user = userEvent.setup();
+    renderPanel({ onDeleteUnfavorited });
+
+    await user.click(screen.getByRole("button", { name: "清理未收藏" }));
+    expect(onDeleteUnfavorited).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "确认删除 1 条未收藏记录" }));
+
+    expect(onDeleteUnfavorited).toHaveBeenCalledOnce();
+  });
 });
 
 function renderPanel(
@@ -69,6 +81,7 @@ function renderPanel(
       onCopy={vi.fn()}
       onFavorite={vi.fn()}
       onDelete={vi.fn()}
+      onDeleteUnfavorited={vi.fn()}
       busy={false}
       {...overrides}
     />,

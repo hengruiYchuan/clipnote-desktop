@@ -458,6 +458,26 @@ pub fn delete_clip(app: AppHandle, state: State<'_, DataState>, id: i64) -> Resu
 }
 
 #[tauri::command]
+pub fn delete_unfavorited_clips(
+    app: AppHandle,
+    state: State<'_, DataState>,
+) -> Result<usize, String> {
+    let connection = open_connection(&state.db_path)?;
+    let deleted = delete_unfavorited_from(&connection)?;
+    if deleted > 0 {
+        app.emit("clips-changed", ())
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(deleted)
+}
+
+fn delete_unfavorited_from(connection: &Connection) -> Result<usize, String> {
+    connection
+        .execute("DELETE FROM clips WHERE favorite = 0", [])
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn list_notes(state: State<'_, DataState>) -> Result<Vec<Note>, String> {
     let connection = open_connection(&state.db_path)?;
     list_notes_from(&connection)
@@ -668,6 +688,23 @@ mod tests {
         assert_eq!(clips[0].preview, "alpha");
         assert!(clips[0].favorite);
         assert_eq!(clips.len(), 2);
+    }
+
+    #[test]
+    fn bulk_delete_preserves_favorite_clips() {
+        let connection = test_connection();
+        let favorite = upsert_clip(&connection, "keep me", 10).unwrap().unwrap();
+        upsert_clip(&connection, "remove one", 20).unwrap();
+        upsert_clip(&connection, "remove two", 30).unwrap();
+        connection
+            .execute("UPDATE clips SET favorite = 1 WHERE id = ?1", [favorite.id])
+            .unwrap();
+
+        assert_eq!(delete_unfavorited_from(&connection).unwrap(), 2);
+        let remaining = list_clips_from(&connection).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].preview, "keep me");
+        assert!(remaining[0].favorite);
     }
 
     #[test]

@@ -38,6 +38,38 @@ test("toggles capture state from the workspace", async ({ page }) => {
   await expect(page.getByRole("button", { name: "恢复剪贴板采集" })).toBeVisible();
 });
 
+test("clears all unfavorited clips while preserving favorites", async ({ page }) => {
+  await page.addInitScript(() => {
+    const clip = (id: number, title: string, favorite: boolean) => ({
+      id,
+      kind: "text",
+      source: "系统剪贴板",
+      capturedAt: Math.floor(Date.now() / 1000),
+      title,
+      preview: title,
+      favorite,
+      useCount: 0,
+    });
+    window.localStorage.setItem(
+      "clipnote-browser-data-v1",
+      JSON.stringify({
+        clips: [clip(1, "保留收藏", true), clip(2, "清理普通记录", false)],
+        notes: [],
+        paused: false,
+      }),
+    );
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开 ClipNote 工作台" }).click();
+  await page.getByRole("button", { name: "清理未收藏" }).click();
+  await page.getByRole("button", { name: "确认删除 1 条未收藏记录" }).click();
+
+  await expect(page.getByRole("heading", { name: "保留收藏" })).toBeVisible();
+  await expect(page.getByText("清理普通记录", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("共 1 条工作碎片")).toBeVisible();
+});
+
 test("creates, locks, and unlocks a local password vault", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "打开 ClipNote 工作台" }).click();

@@ -293,6 +293,16 @@ export function App() {
           onDelete={(item) => {
             void run(() => desktopBridge.deleteClip(item.id), "记录已删除", loadClips);
           }}
+          onDeleteUnfavorited={() => {
+            void run(
+              async () => {
+                const deleted = await desktopBridge.deleteUnfavoritedClips();
+                if (deleted === 0) throw new Error("没有可清理的未收藏记录");
+              },
+              "未收藏记录已清理",
+              loadClips,
+            );
+          }}
         />
       )}
     </Workspace>

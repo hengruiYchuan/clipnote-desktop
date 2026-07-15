@@ -54,6 +54,7 @@ pub fn run() {
             data::set_clip_favorite,
             data::copy_clip,
             data::delete_clip,
+            data::delete_unfavorited_clips,
             data::list_notes,
             data::create_note,
             data::update_note,

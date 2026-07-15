@@ -185,6 +185,16 @@ export const desktopBridge = {
       writeBrowserState(state);
       browserListeners.clips.forEach((listener) => listener());
     }),
+  deleteUnfavoritedClips: () =>
+    invokeOr<number>("delete_unfavorited_clips", undefined, () => {
+      const state = readBrowserState();
+      const previousCount = state.clips.length;
+      state.clips = state.clips.filter((item) => item.favorite);
+      const deleted = previousCount - state.clips.length;
+      writeBrowserState(state);
+      if (deleted > 0) browserListeners.clips.forEach((listener) => listener());
+      return deleted;
+    }),
   getCapturePaused: () =>
     invokeOr<boolean>("get_capture_paused", undefined, () => readBrowserState().paused),
   setCapturePaused: (paused: boolean) =>
