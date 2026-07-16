@@ -1,6 +1,6 @@
 [package]
 name = "clipnote"
-version = "0.3.0"
+version = "0.3.1"
 description = "A docked Windows clipboard and notes workspace"
 authors = ["chuan"]
 edition = "2021"

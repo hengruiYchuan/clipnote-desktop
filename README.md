@@ -9,7 +9,7 @@
 ![Windows](https://img.shields.io/badge/Windows-10%20%2F%2011-2f6f68?style=flat-square)
 ![Tauri](https://img.shields.io/badge/Tauri-2.11-df6747?style=flat-square)
 ![React](https://img.shields.io/badge/React-19-26231f?style=flat-square)
-![Version](https://img.shields.io/badge/version-0.3.0-b68632?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.3.1-b68632?style=flat-square)
 
 </div>
 
@@ -210,4 +210,4 @@ src-tauri/target/release/bundle/nsis/
 
 ## 当前版本
 
-ClipNote `0.3.0` 包含标准化自定义桌宠、AI 形象工坊和本地加密密码本。当前 `main` 分支在此基础上加入剪贴板与便签联动、`.clipnote` 完整备份、可固定与收回的独立桌面便签、剪贴板智能操作和五状态 AI 动画桌宠，并增强了密码本、Chrome/Edge 填充、多图便签、批量 Markdown 导出和卡死窗口处理。
+ClipNote `0.3.1` 加入剪贴板与便签联动、`.clipnote` 完整备份、可固定与收回的独立桌面便签、剪贴板智能操作和五状态 AI 动画桌宠，并增强了密码本、Chrome/Edge 填充、多图便签、批量 Markdown 导出和卡死窗口处理。
