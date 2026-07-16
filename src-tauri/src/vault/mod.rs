@@ -1,11 +1,13 @@
+mod browser;
 mod clipboard;
 mod crypto;
+mod import;
 mod store;
 
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -20,6 +22,7 @@ const MIN_MASTER_PASSWORD_CHARS: usize = 10;
 const MIN_AUTO_LOCK_SECONDS: u64 = 30;
 const MAX_AUTO_LOCK_SECONDS: u64 = 86_400;
 const SECRET_CLEAR_SECONDS: u64 = 30;
+const PAIRING_CLEAR_SECONDS: u64 = 120;
 
 struct VaultSession {
     key: Zeroizing<[u8; crypto::KEY_BYTES]>,
@@ -30,6 +33,20 @@ pub struct VaultState {
     db_path: Arc<PathBuf>,
     session: Mutex<Option<VaultSession>>,
     auto_lock_seconds: AtomicU64,
+}
+
+impl VaultState {
+    pub(crate) fn db_path(&self) -> &Path {
+        self.db_path.as_ref()
+    }
+
+    pub(crate) fn lock_for_restore(&self) -> Result<(), String> {
+        *self
+            .session
+            .lock()
+            .map_err(|_| "密码本会话异常".to_string())? = None;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -54,6 +71,12 @@ pub struct VaultEntryInput {
     note: String,
     #[serde(default)]
     tags: Vec<String>,
+    #[serde(default)]
+    favorite: bool,
+    #[serde(default)]
+    pinned: bool,
+    #[serde(default)]
+    last_used_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -66,6 +89,9 @@ pub struct VaultEntry {
     url: String,
     note: String,
     tags: Vec<String>,
+    favorite: bool,
+    pinned: bool,
+    last_used_at: i64,
     created_at: i64,
     updated_at: i64,
 }
@@ -78,7 +104,43 @@ pub struct VaultEntrySummary {
     username: String,
     url: String,
     tags: Vec<String>,
+    favorite: bool,
+    pinned: bool,
+    last_used_at: i64,
     updated_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultRestoreResult {
+    imported: usize,
+    skipped: usize,
+    replaced: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultImportPreviewRow {
+    index: usize,
+    title: String,
+    username: String,
+    url: String,
+    tags: Vec<String>,
+    duplicate: bool,
+    has_password: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultImportResult {
+    imported: usize,
+    skipped: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserBridgeInfo {
+    port: u16,
 }
 
 impl VaultEntryInput {
@@ -119,8 +181,25 @@ impl VaultEntry {
             url: input.url,
             note: input.note,
             tags: input.tags,
+            favorite: input.favorite,
+            pinned: input.pinned,
+            last_used_at: input.last_used_at,
             created_at,
             updated_at,
+        }
+    }
+
+    pub(super) fn into_input(self) -> VaultEntryInput {
+        VaultEntryInput {
+            title: self.title,
+            username: self.username,
+            password: self.password,
+            url: self.url,
+            note: self.note,
+            tags: self.tags,
+            favorite: self.favorite,
+            pinned: self.pinned,
+            last_used_at: self.last_used_at,
         }
     }
 }
@@ -133,6 +212,9 @@ impl From<VaultEntry> for VaultEntrySummary {
             username: entry.username,
             url: entry.url,
             tags: entry.tags,
+            favorite: entry.favorite,
+            pinned: entry.pinned,
+            last_used_at: entry.last_used_at,
             updated_at: entry.updated_at,
         }
     }
@@ -228,6 +310,7 @@ pub fn vault_status(state: State<'_, VaultState>) -> Result<VaultStatus, String>
 
 #[tauri::command]
 pub fn create_vault(state: State<'_, VaultState>, password: String) -> Result<(), String> {
+    let password = Zeroizing::new(password);
     validate_master_password(&password)?;
     let key = store::create(&state.db_path, &password)?;
     set_session(&state, key)
@@ -235,6 +318,7 @@ pub fn create_vault(state: State<'_, VaultState>, password: String) -> Result<()
 
 #[tauri::command]
 pub fn unlock_vault(state: State<'_, VaultState>, password: String) -> Result<(), String> {
+    let password = Zeroizing::new(password);
     let key = store::unlock(&state.db_path, &password)?;
     set_session(&state, key)
 }
@@ -291,6 +375,8 @@ pub fn change_vault_password(
     current_password: String,
     new_password: String,
 ) -> Result<(), String> {
+    let current_password = Zeroizing::new(current_password);
+    let new_password = Zeroizing::new(new_password);
     validate_master_password(&new_password)?;
     let verified_key = store::unlock(&state.db_path, &current_password)?;
     with_key(&state, |session_key| {
@@ -311,16 +397,244 @@ pub fn set_vault_auto_lock(state: State<'_, VaultState>, seconds: u64) -> Result
     Ok(())
 }
 
+pub fn start_browser_bridge(app: AppHandle) {
+    browser::start(app);
+}
+
+#[tauri::command]
+pub fn export_vault_backup(
+    state: State<'_, VaultState>,
+    destination: String,
+) -> Result<String, String> {
+    if !store::is_initialized(&state.db_path)? {
+        return Err("密码本尚未初始化".into());
+    }
+    let destination = validate_backup_path(PathBuf::from(destination), false)?;
+    let temporary = destination.with_extension("clipvault.tmp");
+    let _ = fs::remove_file(&temporary);
+    store::export_backup(&state.db_path, &temporary)?;
+    if destination.exists() {
+        fs::remove_file(&destination).map_err(|error| error.to_string())?;
+    }
+    fs::rename(&temporary, &destination).map_err(|error| error.to_string())?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn restore_vault_backup(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+    source: String,
+    password: String,
+    mode: String,
+) -> Result<VaultRestoreResult, String> {
+    let source = validate_backup_path(PathBuf::from(source), true)?;
+    let password = Zeroizing::new(password);
+    let backup_key = store::unlock(&source, &password)?;
+    if mode == "merge" {
+        let (imported, skipped) = with_key(&state, |key| {
+            store::merge_backup(&state.db_path, key, &source, &backup_key, now_timestamp())
+        })?;
+        return Ok(VaultRestoreResult {
+            imported,
+            skipped,
+            replaced: false,
+        });
+    }
+    if mode != "replace" {
+        return Err("恢复方式无效".into());
+    }
+
+    let rollback = state.db_path.with_extension("before-restore.sqlite3");
+    let replacement = state.db_path.with_extension("restore.tmp");
+    let _ = fs::remove_file(&rollback);
+    let _ = fs::remove_file(&replacement);
+    store::export_backup(&state.db_path, &rollback)?;
+    fs::copy(&source, &replacement).map_err(|error| error.to_string())?;
+    store::unlock(&replacement, &password)?;
+    *state
+        .session
+        .lock()
+        .map_err(|_| "密码本会话异常".to_string())? = None;
+    if let Err(error) = replace_vault_file(&state.db_path, &replacement) {
+        let _ = fs::copy(&rollback, &*state.db_path);
+        return Err(error);
+    }
+    app.emit("vault-locked", ())
+        .map_err(|error| error.to_string())?;
+    Ok(VaultRestoreResult {
+        imported: 0,
+        skipped: 0,
+        replaced: true,
+    })
+}
+
+#[tauri::command]
+pub fn preview_vault_csv(
+    state: State<'_, VaultState>,
+    source: String,
+) -> Result<Vec<VaultImportPreviewRow>, String> {
+    let source = validate_csv_path(PathBuf::from(source))?;
+    with_key(&state, |key| {
+        let existing = store::list_full_entries(&state.db_path, key)?;
+        import::preview(&source, &existing)
+    })
+}
+
+#[tauri::command]
+pub fn import_vault_csv(
+    state: State<'_, VaultState>,
+    source: String,
+    selected: Vec<usize>,
+) -> Result<VaultImportResult, String> {
+    let source = validate_csv_path(PathBuf::from(source))?;
+    if selected.is_empty() {
+        return Err("请选择要导入的条目".into());
+    }
+    with_key(&state, |key| {
+        let existing = store::list_full_entries(&state.db_path, key)?;
+        let rows = import::read_selected(&source, &existing, &selected)?;
+        let mut imported = 0;
+        let mut skipped = 0;
+        for row in rows {
+            if row.duplicate || row.input.password.is_empty() {
+                skipped += 1;
+                continue;
+            }
+            store::create_entry(&state.db_path, key, row.input, now_timestamp())?;
+            imported += 1;
+        }
+        Ok(VaultImportResult { imported, skipped })
+    })
+}
+
+fn validate_backup_path(path: PathBuf, must_exist: bool) -> Result<PathBuf, String> {
+    if !path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("clipvault"))
+    {
+        return Err("备份文件必须使用 .clipvault 扩展名".into());
+    }
+    if must_exist && !path.is_file() {
+        return Err("备份文件不存在".into());
+    }
+    if !must_exist && !path.parent().is_some_and(Path::is_dir) {
+        return Err("备份目录不存在".into());
+    }
+    Ok(path)
+}
+
+fn validate_csv_path(path: PathBuf) -> Result<PathBuf, String> {
+    if !path.is_file()
+        || !path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("csv"))
+    {
+        return Err("请选择 CSV 文件".into());
+    }
+    if fs::metadata(&path)
+        .map_err(|error| error.to_string())?
+        .len()
+        > 10 * 1024 * 1024
+    {
+        return Err("CSV 文件不能超过 10 MB".into());
+    }
+    Ok(path)
+}
+
+fn replace_vault_file(destination: &Path, replacement: &Path) -> Result<(), String> {
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = PathBuf::from(format!("{}{suffix}", destination.to_string_lossy()));
+        let _ = fs::remove_file(sidecar);
+    }
+    fs::remove_file(destination).map_err(|error| error.to_string())?;
+    fs::rename(replacement, destination).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn touch_vault_activity(state: State<'_, VaultState>) -> Result<(), String> {
+    with_key(&state, |_| Ok(()))
+}
+
+#[tauri::command]
+pub fn copy_browser_pairing_token(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+) -> Result<BrowserBridgeInfo, String> {
+    with_key(&state, |_| Ok(()))?;
+    let token = store::read_or_create_browser_token(&state.db_path)?;
+    clipboard::copy_secret(app, token, Duration::from_secs(PAIRING_CLEAR_SECONDS))?;
+    Ok(BrowserBridgeInfo {
+        port: browser::PORT,
+    })
+}
+
+#[tauri::command]
+pub fn rotate_browser_pairing_token(
+    app: AppHandle,
+    state: State<'_, VaultState>,
+) -> Result<BrowserBridgeInfo, String> {
+    with_key(&state, |_| Ok(()))?;
+    let token = store::rotate_browser_token(&state.db_path)?;
+    clipboard::copy_secret(app, token, Duration::from_secs(PAIRING_CLEAR_SECONDS))?;
+    Ok(BrowserBridgeInfo {
+        port: browser::PORT,
+    })
+}
+
+#[tauri::command]
+pub fn set_vault_entry_favorite(
+    state: State<'_, VaultState>,
+    id: String,
+    favorite: bool,
+) -> Result<(), String> {
+    with_key(&state, |key| {
+        store::update_entry_preferences(&state.db_path, key, &id, Some(favorite), None)
+    })
+}
+
+#[tauri::command]
+pub fn set_vault_entry_pinned(
+    state: State<'_, VaultState>,
+    id: String,
+    pinned: bool,
+) -> Result<(), String> {
+    with_key(&state, |key| {
+        store::update_entry_preferences(&state.db_path, key, &id, None, Some(pinned))
+    })
+}
+
+#[tauri::command]
+pub fn open_vault_url(state: State<'_, VaultState>, id: String) -> Result<(), String> {
+    let raw_url = with_key(&state, |key| {
+        Ok(store::get_entry(&state.db_path, key, &id)?.url)
+    })?;
+    let parsed = url::Url::parse(&raw_url).map_err(|_| "网址格式无效".to_string())?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("仅支持打开 HTTP 或 HTTPS 网址".into());
+    }
+    webbrowser::open(parsed.as_str()).map_err(|error| error.to_string())?;
+    with_key(&state, |key| {
+        store::touch_entry(&state.db_path, key, &id, now_timestamp())
+    })
+}
+
 #[tauri::command]
 pub fn copy_vault_username(
     app: AppHandle,
     state: State<'_, VaultState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<i64, String> {
+    let copied_at = now_timestamp();
     let username = with_key(&state, |key| {
-        Ok(store::get_entry(&state.db_path, key, &id)?.username)
+        let entry = store::get_entry(&state.db_path, key, &id)?;
+        store::touch_entry(&state.db_path, key, &id, copied_at)?;
+        Ok(entry.username)
     })?;
-    clipboard::copy_secret(app, username, Duration::from_secs(SECRET_CLEAR_SECONDS))
+    clipboard::copy_secret(app, username, Duration::from_secs(SECRET_CLEAR_SECONDS))?;
+    Ok(copied_at + SECRET_CLEAR_SECONDS as i64)
 }
 
 #[tauri::command]
@@ -328,11 +642,15 @@ pub fn copy_vault_password(
     app: AppHandle,
     state: State<'_, VaultState>,
     id: String,
-) -> Result<(), String> {
+) -> Result<i64, String> {
+    let copied_at = now_timestamp();
     let password = with_key(&state, |key| {
-        Ok(store::get_entry(&state.db_path, key, &id)?.password)
+        let entry = store::get_entry(&state.db_path, key, &id)?;
+        store::touch_entry(&state.db_path, key, &id, copied_at)?;
+        Ok(entry.password)
     })?;
-    clipboard::copy_secret(app, password, Duration::from_secs(SECRET_CLEAR_SECONDS))
+    clipboard::copy_secret(app, password, Duration::from_secs(SECRET_CLEAR_SECONDS))?;
+    Ok(copied_at + SECRET_CLEAR_SECONDS as i64)
 }
 
 #[tauri::command]
@@ -375,6 +693,9 @@ mod tests {
             url: "https://example.test".into(),
             note: "private note".into(),
             tags: vec!["工作".into()],
+            favorite: false,
+            pinned: false,
+            last_used_at: 0,
         };
         let entry = store::create_entry(&path, &key, input, 10).unwrap();
         assert_eq!(store::list_entries(&path, &key).unwrap().len(), 1);
@@ -382,6 +703,12 @@ mod tests {
             store::get_entry(&path, &key, &entry.id).unwrap().password,
             "top-secret-value"
         );
+        store::update_entry_preferences(&path, &key, &entry.id, Some(true), Some(true)).unwrap();
+        store::touch_entry(&path, &key, &entry.id, 99).unwrap();
+        let summary = store::list_entries(&path, &key).unwrap().remove(0);
+        assert!(summary.favorite);
+        assert!(summary.pinned);
+        assert_eq!(summary.last_used_at, 99);
 
         let bytes = fs::read(&path).unwrap();
         for plaintext in ["private@example.test", "top-secret-value", "private note"] {
@@ -402,5 +729,48 @@ mod tests {
         assert!(store::list_entries(&path, &key).unwrap().is_empty());
         drop(key);
         let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn encrypted_backup_can_be_unlocked_and_merged() {
+        let source = test_path("backup-source");
+        let destination = test_path("backup-copy");
+        let current = test_path("backup-current");
+        for path in [&source, &current] {
+            store::initialize(path).unwrap();
+        }
+        let source_key = store::create(&source, "source master password").unwrap();
+        store::create_entry(
+            &source,
+            &source_key,
+            VaultEntryInput {
+                title: "来源邮箱".into(),
+                username: "source@example.test".into(),
+                password: "source-secret".into(),
+                url: "https://example.test".into(),
+                note: String::new(),
+                tags: vec!["备份".into()],
+                favorite: true,
+                pinned: false,
+                last_used_at: 7,
+            },
+            1,
+        )
+        .unwrap();
+        store::export_backup(&source, &destination).unwrap();
+        let backup_key = store::unlock(&destination, "source master password").unwrap();
+
+        let current_key = store::create(&current, "current master password").unwrap();
+        let (imported, skipped) =
+            store::merge_backup(&current, &current_key, &destination, &backup_key, 2).unwrap();
+        assert_eq!((imported, skipped), (1, 0));
+        assert_eq!(
+            store::list_entries(&current, &current_key).unwrap().len(),
+            1
+        );
+
+        for path in [source, destination, current] {
+            let _ = fs::remove_file(path);
+        }
     }
 }

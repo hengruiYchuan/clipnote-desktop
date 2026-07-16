@@ -4,7 +4,9 @@ use std::{
     thread,
     time::Duration,
 };
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
+use tauri::{
+    AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder,
+};
 
 const MAIN_WINDOW: &str = "main";
 const EDGE_MARGIN: i32 = 12;
@@ -12,6 +14,7 @@ const COLLAPSED_WIDTH: u32 = 56;
 const COLLAPSED_HEIGHT: u32 = 56;
 const EXPANDED_WIDTH: u32 = 648;
 const EXPANDED_HEIGHT: u32 = 1000;
+const STICKY_LABEL_PREFIX: &str = "sticky-";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WorkArea {
@@ -210,6 +213,11 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn exit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 pub fn toggle_main_window(app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(MAIN_WINDOW)
@@ -223,6 +231,155 @@ pub fn toggle_main_window(app: AppHandle) -> Result<(), String> {
     } else {
         collapse_main_window(app)
     }
+}
+
+fn sticky_label(id: i64) -> Result<String, String> {
+    if id <= 0 {
+        return Err("便签编号无效".into());
+    }
+    Ok(format!("{STICKY_LABEL_PREFIX}{id}"))
+}
+
+pub fn restore_desktop_notes(app: &AppHandle) -> Result<(), String> {
+    for note in crate::data::pinned_notes_for_app(app)? {
+        create_sticky_window(app, &note)?;
+    }
+    Ok(())
+}
+
+fn create_sticky_window(app: &AppHandle, note: &crate::data::Note) -> Result<(), String> {
+    let label = sticky_label(note.id)?;
+    if let Some(window) = app.get_webview_window(&label) {
+        window.show().map_err(|error| error.to_string())?;
+        let _ = window.set_focus();
+        return Ok(());
+    }
+    let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+        .title("ClipNote 桌面便签")
+        .inner_size(note.desktop_width as f64, note.desktop_height as f64)
+        .min_inner_size(220.0, 160.0)
+        .resizable(true)
+        .decorations(false)
+        .transparent(false)
+        .always_on_top(note.always_on_top)
+        .shadow(true);
+    if let (Some(x), Some(y)) = (note.desktop_x, note.desktop_y) {
+        builder = builder.position(x as f64, y as f64);
+    }
+    builder.build().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_desktop_note(app: AppHandle, id: i64) -> Result<(), String> {
+    let mut note = crate::data::note_for_app(&app, id)?;
+    note.desktop_pinned = true;
+    note = crate::data::update_note_desktop_state_for_app(
+        &app,
+        id,
+        crate::data::DesktopNoteStateInput {
+            desktop_pinned: true,
+            desktop_x: note.desktop_x,
+            desktop_y: note.desktop_y,
+            desktop_width: note.desktop_width,
+            desktop_height: note.desktop_height,
+            always_on_top: note.always_on_top,
+        },
+    )?;
+    create_sticky_window(&app, &note)
+}
+
+fn sticky_geometry(app: &AppHandle, id: i64) -> Result<(i32, i32, i32, i32), String> {
+    let window = app
+        .get_webview_window(&sticky_label(id)?)
+        .ok_or_else(|| "桌面便签窗口不存在".to_string())?;
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    let position = window
+        .outer_position()
+        .map_err(|error| error.to_string())?
+        .to_logical::<i32>(scale);
+    let size = window
+        .outer_size()
+        .map_err(|error| error.to_string())?
+        .to_logical::<i32>(scale);
+    Ok((position.x, position.y, size.width, size.height))
+}
+
+#[tauri::command]
+pub fn save_desktop_note_geometry(app: AppHandle, id: i64) -> Result<(), String> {
+    let note = crate::data::note_for_app(&app, id)?;
+    let (x, y, width, height) = sticky_geometry(&app, id)?;
+    crate::data::update_note_desktop_state_for_app(
+        &app,
+        id,
+        crate::data::DesktopNoteStateInput {
+            desktop_pinned: true,
+            desktop_x: Some(x),
+            desktop_y: Some(y),
+            desktop_width: width,
+            desktop_height: height,
+            always_on_top: note.always_on_top,
+        },
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_desktop_note_always_on_top(
+    app: AppHandle,
+    id: i64,
+    always_on_top: bool,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(&sticky_label(id)?)
+        .ok_or_else(|| "桌面便签窗口不存在".to_string())?;
+    window
+        .set_always_on_top(always_on_top)
+        .map_err(|error| error.to_string())?;
+    let note = crate::data::note_for_app(&app, id)?;
+    crate::data::update_note_desktop_state_for_app(
+        &app,
+        id,
+        crate::data::DesktopNoteStateInput {
+            desktop_pinned: true,
+            desktop_x: note.desktop_x,
+            desktop_y: note.desktop_y,
+            desktop_width: note.desktop_width,
+            desktop_height: note.desktop_height,
+            always_on_top,
+        },
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn start_drag_desktop_note(app: AppHandle, id: i64) -> Result<(), String> {
+    app.get_webview_window(&sticky_label(id)?)
+        .ok_or_else(|| "桌面便签窗口不存在".to_string())?
+        .start_dragging()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn retract_desktop_note(app: AppHandle, id: i64) -> Result<(), String> {
+    let note = crate::data::note_for_app(&app, id)?;
+    let geometry = sticky_geometry(&app, id).ok();
+    crate::data::update_note_desktop_state_for_app(
+        &app,
+        id,
+        crate::data::DesktopNoteStateInput {
+            desktop_pinned: false,
+            desktop_x: geometry.map(|value| value.0).or(note.desktop_x),
+            desktop_y: geometry.map(|value| value.1).or(note.desktop_y),
+            desktop_width: geometry.map(|value| value.2).unwrap_or(note.desktop_width),
+            desktop_height: geometry.map(|value| value.3).unwrap_or(note.desktop_height),
+            always_on_top: note.always_on_top,
+        },
+    )?;
+    if let Some(window) = app.get_webview_window(&sticky_label(id)?) {
+        window.close().map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

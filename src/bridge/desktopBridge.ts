@@ -1,18 +1,29 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   disable as disableAutostart,
   enable as enableAutostart,
   isEnabled as isAutostartEnabled,
 } from "@tauri-apps/plugin-autostart";
 import type { ShellMode } from "../features/shell/useShellStore";
-import { builtinPet, type PetDefinition, type PetSummary } from "../features/pets/types";
-import type { ClipItem, Note, NoteInput } from "../types/content";
+import type { WindowProcessTarget } from "../features/settings/types";
+import {
+  builtinPet,
+  type AiPetProviderInput,
+  type AiPetProviderStatus,
+  type PetDefinition,
+  type PetSummary,
+} from "../features/pets/types";
+import type { ClipItem, DesktopNoteStateInput, Note, NoteInput } from "../types/content";
 import type {
+  BrowserBridgeInfo,
   VaultEntry,
   VaultEntryInput,
   VaultEntrySummary,
+  VaultImportPreviewRow,
+  VaultImportResult,
+  VaultRestoreResult,
   VaultStatus,
 } from "../features/vault/types";
 
@@ -31,6 +42,10 @@ async function call(command: string) {
   }
 }
 
+async function callWithArgs(command: string, args: Record<string, unknown>) {
+  if (isTauri()) await invoke(command, args);
+}
+
 type BrowserState = {
   clips: ClipItem[];
   notes: Note[];
@@ -40,8 +55,10 @@ type BrowserState = {
 const browserStorageKey = "clipnote-browser-data-v1";
 const browserAutostartKey = "clipnote-browser-autostart-v1";
 const browserSelectedPetKey = "clipnote-browser-selected-pet-v1";
+const invalidWindowsFileNameChars = '<>:"/\\|?*';
 const browserListeners = {
   clips: new Set<() => void>(),
+  notes: new Set<() => void>(),
   capture: new Set<(paused: boolean) => void>(),
   vaultLock: new Set<() => void>(),
 };
@@ -59,17 +76,49 @@ let browserVault: {
   autoLockSeconds: 300,
   entries: [],
 };
-let browserAiPetApiKey = "";
+let browserAiPetProvider: AiPetProviderStatus & { apiKey: string } = {
+  provider: "openai-compatible",
+  configured: false,
+  baseUrl: "https://api.openai.com/v1",
+  model: "gpt-image-1.5",
+  textModel: "gpt-4.1-mini",
+  apiKey: "",
+};
+
+export type FullBackupRestoreResult = {
+  preferencesJson: string;
+  clips: number;
+  notes: number;
+};
 
 function readBrowserState(): BrowserState {
   try {
     const stored = window.localStorage.getItem(browserStorageKey);
     if (stored) {
       const state = JSON.parse(stored) as BrowserState;
-      state.notes = state.notes.map((note) => ({
-        ...note,
-        imageData: note.imageData ?? "",
-      }));
+      state.notes = state.notes.map((note) => {
+        const legacyImageData = (note as Note & { imageData?: string }).imageData ?? "";
+        const images = Array.isArray(note.images)
+          ? note.images
+          : legacyImageData
+            ? [{ id: "legacy", dataUrl: legacyImageData }]
+            : [];
+        const body = legacyImageData && !note.body.includes("{{clipnote-image:legacy}}")
+          ? `{{clipnote-image:legacy}}${note.body ? `\n\n${note.body}` : ""}`
+          : note.body;
+        return {
+          ...note,
+          body,
+          images,
+          sourceClipIds: note.sourceClipIds ?? [],
+          desktopPinned: note.desktopPinned ?? false,
+          desktopX: note.desktopX ?? null,
+          desktopY: note.desktopY ?? null,
+          desktopWidth: note.desktopWidth ?? 320,
+          desktopHeight: note.desktopHeight ?? 260,
+          alwaysOnTop: note.alwaysOnTop ?? true,
+        };
+      });
       return state;
     }
   } catch {
@@ -90,6 +139,15 @@ function nextBrowserId(items: { id: number }[]) {
   return items.reduce((maximum, item) => Math.max(maximum, item.id), 0) + 1;
 }
 
+function browserNoteTitle(input: NoteInput) {
+  if (input.title.trim()) return input.title.trim();
+  const firstTextLine = input.body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line && !line.startsWith("{{clipnote-image:"));
+  return firstTextLine || (input.images.length ? "图片便签" : "未命名便签");
+}
+
 async function invokeOr<T>(
   command: string,
   args: Record<string, unknown> | undefined,
@@ -108,6 +166,25 @@ export const desktopBridge = {
   collapse: () => call("collapse_main_window"),
   startDragging: () => call("start_drag_main_window"),
   hide: () => call("hide_main_window"),
+  quit: () => call("exit_app"),
+  openDesktopNote: (id: number) => callWithArgs("open_desktop_note", { id }),
+  saveDesktopNoteGeometry: (id: number) => callWithArgs("save_desktop_note_geometry", { id }),
+  setDesktopNoteAlwaysOnTop: (id: number, alwaysOnTop: boolean) =>
+    callWithArgs("set_desktop_note_always_on_top", { id, alwaysOnTop }),
+  startDragDesktopNote: (id: number) => callWithArgs("start_drag_desktop_note", { id }),
+  retractDesktopNote: (id: number) => callWithArgs("retract_desktop_note", { id }),
+  pickWindowProcess: () =>
+    invokeOr<WindowProcessTarget | null>("pick_window_process", undefined, () => ({
+      pid: 4242,
+      processName: "preview.exe",
+      windowTitle: "浏览器预览窗口",
+      executablePath: "C:\\Program Files\\Preview\\preview.exe",
+      windowHandle: 4242,
+      windowClass: "PreviewWindow",
+      closeWindowOnly: false,
+    })),
+  terminateWindowProcess: (target: WindowProcessTarget) =>
+    invokeOr<void>("terminate_window_process", { target }, () => undefined),
   toggle: () => call("toggle_main_window"),
   getAutostartEnabled: () =>
     isTauri()
@@ -214,6 +291,10 @@ export const desktopBridge = {
     if (!isTauri()) return browserSubscription(browserListeners.capture, handler);
     return listen<boolean>("capture-state-changed", (event) => handler(event.payload));
   },
+  onNotesChanged: async (handler: () => void): Promise<UnlistenFn> => {
+    if (!isTauri()) return browserSubscription(browserListeners.notes, handler);
+    return listen("notes-changed", handler);
+  },
   listNotes: () =>
     invokeOr<Note[]>("list_notes", undefined, () => readBrowserState().notes),
   createNote: (input: NoteInput) =>
@@ -222,19 +303,71 @@ export const desktopBridge = {
       const timestamp = Math.floor(Date.now() / 1000);
       const note: Note = {
         id: nextBrowserId(state.notes),
-        title:
-          input.title.trim() ||
-          input.body.trim().split(/\r?\n/, 1)[0] ||
-          (input.imageData ? "图片便签" : "未命名便签"),
+        title: browserNoteTitle(input),
         body: input.body.trim(),
         tone: input.tone,
-        imageData: input.imageData,
+        images: input.images,
+        sourceClipIds: [],
+        desktopPinned: false,
+        desktopX: null,
+        desktopY: null,
+        desktopWidth: 320,
+        desktopHeight: 260,
+        alwaysOnTop: true,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
       state.notes.unshift(note);
       writeBrowserState(state);
+      browserListeners.notes.forEach((listener) => listener());
       return note;
+    }),
+  getNote: (id: number) =>
+    invokeOr<Note>("get_note", { id }, () => {
+      const note = readBrowserState().notes.find((candidate) => candidate.id === id);
+      if (!note) throw new Error("便签不存在");
+      return note;
+    }),
+  createNoteFromClips: (ids: number[]) =>
+    invokeOr<Note>("create_note_from_clips", { ids }, () => {
+      const state = readBrowserState();
+      const selected = ids.map((id) => {
+        const clip = state.clips.find((candidate) => candidate.id === id);
+        if (!clip) throw new Error("有剪贴板记录已不存在");
+        return clip;
+      });
+      if (!selected.length) throw new Error("请选择剪贴板记录");
+      const timestamp = Math.floor(Date.now() / 1000);
+      const note: Note = {
+        id: nextBrowserId(state.notes),
+        title: selected.length === 1 ? selected[0].title : `来自剪贴板的 ${selected.length} 条内容`,
+        body: selected.map((clip) => clip.preview.trim()).join("\n\n---\n\n"),
+        tone: "paper",
+        images: [],
+        sourceClipIds: ids,
+        desktopPinned: false,
+        desktopX: null,
+        desktopY: null,
+        desktopWidth: 320,
+        desktopHeight: 260,
+        alwaysOnTop: true,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      state.notes.unshift(note);
+      writeBrowserState(state);
+      browserListeners.notes.forEach((listener) => listener());
+      return note;
+    }),
+  updateNoteDesktopState: (id: number, input: DesktopNoteStateInput) =>
+    invokeOr<Note>("update_note_desktop_state", { id, input }, () => {
+      const state = readBrowserState();
+      const index = state.notes.findIndex((note) => note.id === id);
+      if (index < 0) throw new Error("便签不存在");
+      state.notes[index] = { ...state.notes[index], ...input };
+      writeBrowserState(state);
+      browserListeners.notes.forEach((listener) => listener());
+      return state.notes[index];
     }),
   updateNote: (id: number, input: NoteInput) =>
     invokeOr<Note>("update_note", { id, input }, () => {
@@ -244,15 +377,13 @@ export const desktopBridge = {
       const note = {
         ...state.notes[index],
         ...input,
-        title:
-          input.title.trim() ||
-          input.body.trim().split(/\r?\n/, 1)[0] ||
-          (input.imageData ? "图片便签" : "未命名便签"),
+        title: browserNoteTitle(input),
         body: input.body.trim(),
         updatedAt: Math.floor(Date.now() / 1000),
       };
       state.notes[index] = note;
       writeBrowserState(state);
+      browserListeners.notes.forEach((listener) => listener());
       return note;
     }),
   deleteNote: (id: number) =>
@@ -260,7 +391,62 @@ export const desktopBridge = {
       const state = readBrowserState();
       state.notes = state.notes.filter((note) => note.id !== id);
       writeBrowserState(state);
+      browserListeners.notes.forEach((listener) => listener());
     }),
+  exportNoteMarkdown: async (note: Note) => {
+    if (!isTauri()) return false;
+    const safeTitle = Array.from(note.title, (character) =>
+      invalidWindowsFileNameChars.includes(character) || character.charCodeAt(0) < 32
+        ? "_"
+        : character,
+    )
+      .join("")
+      .trim()
+      .slice(0, 80) || `便签-${note.id}`;
+    const destination = await save({
+      defaultPath: `${safeTitle}.md`,
+      filters: [{ name: "Markdown 文档", extensions: ["md"] }],
+    });
+    if (typeof destination !== "string") return false;
+    await invoke<string>("export_note_markdown", { id: note.id, destination });
+    return true;
+  },
+  exportNotesMarkdown: async (notes: Note[]) => {
+    if (!isTauri() || notes.length === 0) return false;
+    const destination = await save({
+      defaultPath: "ClipNote-便签合集.md",
+      filters: [{ name: "Markdown 文档", extensions: ["md"] }],
+    });
+    if (typeof destination !== "string") return false;
+    await invoke<string>("export_notes_markdown", {
+      ids: notes.map((note) => note.id),
+      destination,
+    });
+    return true;
+  },
+  exportFullBackup: async (preferences: unknown) => {
+    if (!isTauri()) return false;
+    const destination = await save({
+      defaultPath: `ClipNote-${new Date().toISOString().slice(0, 10)}.clipnote`,
+      filters: [{ name: "ClipNote 完整备份", extensions: ["clipnote"] }],
+    });
+    if (typeof destination !== "string") return false;
+    await invoke<string>("export_full_backup", {
+      destination,
+      preferencesJson: JSON.stringify(preferences),
+    });
+    return true;
+  },
+  restoreFullBackup: async () => {
+    if (!isTauri()) return null;
+    const source = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "ClipNote 完整备份", extensions: ["clipnote"] }],
+    });
+    if (typeof source !== "string") return null;
+    return invoke<FullBackupRestoreResult>("restore_full_backup", { source });
+  },
   vaultStatus: () =>
     invokeOr<VaultStatus>("vault_status", undefined, () => ({
       initialized: browserVault.initialized,
@@ -284,14 +470,24 @@ export const desktopBridge = {
     }),
   listVaultEntries: () =>
     invokeOr<VaultEntrySummary[]>("list_vault_entries", undefined, () =>
-      browserVault.entries.map(({ id, title, username, url, tags, updatedAt }) => ({
-        id,
-        title,
-        username,
-        url,
-        tags,
-        updatedAt,
-      })),
+      browserVault.entries
+        .map(({ id, title, username, url, tags, favorite, pinned, lastUsedAt, updatedAt }) => ({
+          id,
+          title,
+          username,
+          url,
+          tags,
+          favorite,
+          pinned,
+          lastUsedAt,
+          updatedAt,
+        }))
+        .sort((left, right) =>
+          Number(right.pinned) - Number(left.pinned)
+          || Number(right.favorite) - Number(left.favorite)
+          || right.lastUsedAt - left.lastUsedAt
+          || right.updatedAt - left.updatedAt,
+        ),
     ),
   getVaultEntry: (id: string) =>
     invokeOr<VaultEntry>("get_vault_entry", { id }, () => {
@@ -336,17 +532,79 @@ export const desktopBridge = {
     invokeOr<void>("set_vault_auto_lock", { seconds }, () => {
       browserVault.autoLockSeconds = seconds;
     }),
+  exportVaultBackup: async () => {
+    if (!isTauri()) return false;
+    const destination = await save({
+      defaultPath: "ClipNote-密码本备份.clipvault",
+      filters: [{ name: "ClipNote 加密备份", extensions: ["clipvault"] }],
+    });
+    if (typeof destination !== "string") return false;
+    await invoke<string>("export_vault_backup", { destination });
+    return true;
+  },
+  selectVaultBackup: async () => {
+    if (!isTauri()) return null;
+    const source = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "ClipNote 加密备份", extensions: ["clipvault"] }],
+    });
+    return typeof source === "string" ? source : null;
+  },
+  restoreVaultBackup: (source: string, password: string, mode: "merge" | "replace") =>
+    invoke<VaultRestoreResult>("restore_vault_backup", { source, password, mode }),
+  selectVaultCsv: async () => {
+    if (!isTauri()) return null;
+    const source = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "密码管理器 CSV", extensions: ["csv"] }],
+    });
+    return typeof source === "string" ? source : null;
+  },
+  previewVaultCsv: (source: string) =>
+    invoke<VaultImportPreviewRow[]>("preview_vault_csv", { source }),
+  importVaultCsv: (source: string, selected: number[]) =>
+    invoke<VaultImportResult>("import_vault_csv", { source, selected }),
+  copyBrowserPairingToken: () =>
+    invoke<BrowserBridgeInfo>("copy_browser_pairing_token"),
+  rotateBrowserPairingToken: () =>
+    invoke<BrowserBridgeInfo>("rotate_browser_pairing_token"),
+  touchVaultActivity: () => invokeOr<void>("touch_vault_activity", undefined, () => undefined),
+  setVaultEntryFavorite: (id: string, favorite: boolean) =>
+    invokeOr<void>("set_vault_entry_favorite", { id, favorite }, () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry) throw new Error("密码条目不存在");
+      entry.favorite = favorite;
+    }),
+  setVaultEntryPinned: (id: string, pinned: boolean) =>
+    invokeOr<void>("set_vault_entry_pinned", { id, pinned }, () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry) throw new Error("密码条目不存在");
+      entry.pinned = pinned;
+    }),
+  openVaultUrl: (id: string) =>
+    invokeOr<void>("open_vault_url", { id }, () => {
+      const entry = browserVault.entries.find((item) => item.id === id);
+      if (!entry?.url) throw new Error("网址格式无效");
+      entry.lastUsedAt = Math.floor(Date.now() / 1000);
+      window.open(entry.url, "_blank", "noopener,noreferrer");
+    }),
   copyVaultUsername: (id: string) =>
-    invokeOr<void>("copy_vault_username", { id }, async () => {
+    invokeOr<number>("copy_vault_username", { id }, async () => {
       const entry = browserVault.entries.find((item) => item.id === id);
       if (!entry) throw new Error("密码条目不存在");
       await navigator.clipboard?.writeText(entry.username);
+      entry.lastUsedAt = Math.floor(Date.now() / 1000);
+      return entry.lastUsedAt + 30;
     }),
   copyVaultPassword: (id: string) =>
-    invokeOr<void>("copy_vault_password", { id }, async () => {
+    invokeOr<number>("copy_vault_password", { id }, async () => {
       const entry = browserVault.entries.find((item) => item.id === id);
       if (!entry) throw new Error("密码条目不存在");
       await navigator.clipboard?.writeText(entry.password);
+      entry.lastUsedAt = Math.floor(Date.now() / 1000);
+      return entry.lastUsedAt + 30;
     }),
   onVaultLocked: async (handler: () => void): Promise<UnlistenFn> => {
     if (!isTauri()) return browserSubscription(browserListeners.vaultLock, handler);
@@ -359,18 +617,37 @@ export const desktopBridge = {
       () => undefined,
     ),
   aiPetProviderStatus: () =>
-    invokeOr<{ provider: string; configured: boolean; defaultModel: string }>(
+    invokeOr<AiPetProviderStatus>(
       "ai_pet_provider_status",
       undefined,
-      () => ({ provider: "openai", configured: Boolean(browserAiPetApiKey), defaultModel: "gpt-image-1.5" }),
+      () => ({
+        provider: browserAiPetProvider.provider,
+        configured: browserAiPetProvider.configured,
+        baseUrl: browserAiPetProvider.baseUrl,
+        model: browserAiPetProvider.model,
+        textModel: browserAiPetProvider.textModel,
+      }),
     ),
-  setAiPetApiKey: (apiKey: string) =>
-    invokeOr<void>("set_ai_pet_api_key", { apiKey }, () => {
-      browserAiPetApiKey = apiKey;
+  setAiPetProvider: (input: AiPetProviderInput) =>
+    invokeOr<void>("set_ai_pet_provider", { input }, () => {
+      browserAiPetProvider = {
+        provider: "openai-compatible",
+        configured: true,
+        baseUrl: input.baseUrl,
+        model: input.model,
+        textModel: input.textModel || browserAiPetProvider.textModel,
+        apiKey: input.apiKey || browserAiPetProvider.apiKey,
+      };
     }),
+  testAiPetProvider: (input: AiPetProviderInput) =>
+    invokeOr<void>("test_ai_pet_provider", { input }, () => undefined),
   clearAiPetApiKey: () =>
     invokeOr<void>("clear_ai_pet_api_key", undefined, () => {
-      browserAiPetApiKey = "";
+      browserAiPetProvider = {
+        ...browserAiPetProvider,
+        configured: false,
+        apiKey: "",
+      };
     }),
   generateAiPet: (input: {
     name: string;
@@ -378,8 +655,30 @@ export const desktopBridge = {
     prompt: string;
     style: string;
     referenceDataUrl: string;
+    mode: "light" | "full";
   }) =>
     invokeOr<PetSummary>("generate_ai_pet", { input }, () => {
       throw new Error("AI 桌宠生成需要在桌面版中运行");
     }),
+  onAiPetGenerationProgress: async (
+    handler: (progress: { completed: number; total: number; state: string }) => void,
+  ): Promise<UnlistenFn> => {
+    if (!isTauri()) return () => undefined;
+    return listen("ai-pet-generation-progress", (event) =>
+      handler(event.payload as { completed: number; total: number; state: string }),
+    );
+  },
+  smartTextAction: (input: { action: string; content: string; instruction?: string }) =>
+    invokeOr<string>("smart_text_action", { input }, () => browserSmartTextAction(input)),
 };
+
+function browserSmartTextAction(input: { action: string; content: string }) {
+  switch (input.action) {
+    case "format-json": return JSON.stringify(JSON.parse(input.content), null, 2);
+    case "clean-whitespace": return input.content.split(/\r?\n/).map((line) => line.trim().replace(/\s+/g, " ")).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+    case "extract-urls": return Array.from(input.content.matchAll(/https?:\/\/[^\s<>"']+/g), (match) => match[0]).join("\n");
+    case "base64-encode": return window.btoa(unescape(encodeURIComponent(input.content)));
+    case "base64-decode": return decodeURIComponent(escape(window.atob(input.content.trim())));
+    default: throw new Error("AI 文本处理需要在桌面版中运行");
+  }
+}

@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from "react";
 import {
+  Check,
   ChevronDown,
   ChevronUp,
   Code2,
@@ -7,7 +8,9 @@ import {
   FileText,
   Folder,
   Link2,
+  NotebookPen,
   Star,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -26,6 +29,10 @@ export function ClipCard({
   onCopy,
   onFavorite,
   onDelete,
+  onCreateNote,
+  onSmart,
+  selected,
+  onToggleSelected,
   busy,
   collapseLongClips,
   previewLines,
@@ -34,6 +41,10 @@ export function ClipCard({
   onCopy: (item: ClipItem) => void;
   onFavorite: (item: ClipItem) => void;
   onDelete: (item: ClipItem) => void;
+  onCreateNote: () => void;
+  onSmart: () => void;
+  selected: boolean;
+  onToggleSelected: () => void;
   busy: boolean;
   collapseLongClips: boolean;
   previewLines: 4 | 6 | 8;
@@ -44,6 +55,15 @@ export function ClipCard({
 
   return (
     <motion.article className="clip-card" data-kind={item.kind} layout whileHover={{ y: -2 }}>
+      <label className="clip-card__select">
+        <input
+          type="checkbox"
+          checked={selected}
+          aria-label={`选择剪贴板：${item.title}`}
+          onChange={onToggleSelected}
+        />
+        <span aria-hidden="true">{selected && <Check />}</span>
+      </label>
       <div className="clip-card__meta">
         <KindIcon aria-hidden="true" />
         <span>{item.source}</span>
@@ -74,7 +94,21 @@ export function ClipCard({
       <div className="clip-card__actions">
         <span>使用 {item.useCount} 次</span>
         <IconButton
-          label={item.favorite ? `取消收藏：${item.title}` : `收藏：${item.title}`}
+          label="智能操作"
+          onClick={onSmart}
+          disabled={busy}
+        >
+          <Sparkles aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          label="转为便签"
+          onClick={onCreateNote}
+          disabled={busy}
+        >
+          <NotebookPen aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          label={item.favorite ? "取消收藏" : "收藏"}
           onClick={() => onFavorite(item)}
           disabled={busy}
           aria-pressed={item.favorite}
@@ -82,14 +116,14 @@ export function ClipCard({
           <Star aria-hidden="true" fill={item.favorite ? "currentColor" : "none"} />
         </IconButton>
         <IconButton
-          label={`复制：${item.title}`}
+          label="复制"
           onClick={() => onCopy(item)}
           disabled={busy}
         >
           <Copy aria-hidden="true" />
         </IconButton>
         <IconButton
-          label={`删除：${item.title}`}
+          label="删除"
           onClick={() => onDelete(item)}
           disabled={busy}
         >

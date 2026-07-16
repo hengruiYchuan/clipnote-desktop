@@ -26,11 +26,26 @@ describe("LibraryPanel", () => {
     const user = userEvent.setup();
     renderPanel({ onCopy, onFavorite });
 
-    await user.click(screen.getByRole("button", { name: `复制：${sampleClip.title}` }));
-    await user.click(screen.getByRole("button", { name: `收藏：${sampleClip.title}` }));
+    await user.click(screen.getByRole("button", { name: "复制" }));
+    await user.click(screen.getByRole("button", { name: "收藏" }));
 
     expect(onCopy).toHaveBeenCalledWith(sampleClip);
     expect(onFavorite).toHaveBeenCalledWith(sampleClip);
+  });
+
+  it("turns one clip into a note and merges selected clips", async () => {
+    const onCreateNote = vi.fn();
+    const user = userEvent.setup();
+    const second = { ...sampleClip, id: 2, title: "第二条", preview: "第二段内容" };
+    renderPanel({ items: [sampleClip, second], onCreateNote });
+
+    await user.click(screen.getAllByRole("button", { name: "转为便签" })[0]);
+    expect(onCreateNote).toHaveBeenCalledWith([sampleClip]);
+
+    await user.click(screen.getByRole("checkbox", { name: `选择剪贴板：${sampleClip.title}` }));
+    await user.click(screen.getByRole("checkbox", { name: `选择剪贴板：${second.title}` }));
+    await user.click(screen.getByRole("button", { name: "合并为便签（2）" }));
+    expect(onCreateNote).toHaveBeenLastCalledWith([sampleClip, second]);
   });
 
   it("folds long clipboard text and can expand it", async () => {
@@ -82,6 +97,9 @@ function renderPanel(
       onFavorite={vi.fn()}
       onDelete={vi.fn()}
       onDeleteUnfavorited={vi.fn()}
+      onCreateNote={vi.fn()}
+      onCreateSmartNote={vi.fn().mockResolvedValue(undefined)}
+      onMessage={vi.fn()}
       busy={false}
       {...overrides}
     />,

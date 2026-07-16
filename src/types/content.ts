@@ -13,19 +13,41 @@ export type ClipItem = {
 
 export type NoteTone = "sun" | "mint" | "paper";
 
+export type NoteImage = {
+  id: string;
+  dataUrl: string;
+};
+
 export type Note = {
   id: number;
   title: string;
   body: string;
   tone: NoteTone;
-  imageData: string;
+  images: NoteImage[];
+  sourceClipIds: number[];
+  desktopPinned: boolean;
+  desktopX: number | null;
+  desktopY: number | null;
+  desktopWidth: number;
+  desktopHeight: number;
+  alwaysOnTop: boolean;
   createdAt: number;
   updatedAt: number;
 };
+
+export type DesktopNoteStateInput = Pick<
+  Note,
+  | "desktopPinned"
+  | "desktopX"
+  | "desktopY"
+  | "desktopWidth"
+  | "desktopHeight"
+  | "alwaysOnTop"
+>;
 
 export type NoteInput = {
   title: string;
   body: string;
   tone: NoteTone;
-  imageData: string;
+  images: NoteImage[];
 };

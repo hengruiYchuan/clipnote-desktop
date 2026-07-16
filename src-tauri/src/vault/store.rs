@@ -1,5 +1,5 @@
 use super::{crypto, VaultEntry, VaultEntryInput, VaultEntrySummary};
-use rusqlite::{params, Connection, OptionalExtension, Row};
+use rusqlite::{params, Connection, OptionalExtension, Row, MAIN_DB};
 use std::{path::Path, time::Duration};
 use zeroize::Zeroizing;
 
@@ -122,7 +122,7 @@ pub fn list_entries(
              FROM vault_entries ORDER BY updated_at DESC, id DESC",
         )
         .map_err(|error| error.to_string())?;
-    let entries = statement
+    let mut entries = statement
         .query_map([], encrypted_row)
         .map_err(|error| error.to_string())?
         .map(|row| {
@@ -130,8 +130,16 @@ pub fn list_entries(
                 .and_then(|row| decrypt_row(key, row))
         })
         .map(|result| result.map(VaultEntrySummary::from))
-        .collect();
-    entries
+        .collect::<Result<Vec<_>, String>>()?;
+    entries.sort_by(|left, right| {
+        right
+            .pinned
+            .cmp(&left.pinned)
+            .then_with(|| right.favorite.cmp(&left.favorite))
+            .then_with(|| right.last_used_at.cmp(&left.last_used_at))
+            .then_with(|| right.updated_at.cmp(&left.updated_at))
+    });
+    Ok(entries)
 }
 
 pub fn get_entry(
@@ -204,6 +212,128 @@ pub fn update_entry(
     ))
 }
 
+pub fn export_backup(path: &Path, destination: &Path) -> Result<(), String> {
+    let connection = open(path)?;
+    connection
+        .backup(MAIN_DB, destination, None)
+        .map_err(|error| error.to_string())
+}
+
+pub fn list_full_entries(
+    path: &Path,
+    key: &[u8; crypto::KEY_BYTES],
+) -> Result<Vec<VaultEntry>, String> {
+    let connection = open(path)?;
+    let mut statement = connection
+        .prepare(
+            "SELECT id, nonce, ciphertext, created_at, updated_at
+             FROM vault_entries ORDER BY updated_at DESC, id DESC",
+        )
+        .map_err(|error| error.to_string())?;
+    let entries = statement
+        .query_map([], encrypted_row)
+        .map_err(|error| error.to_string())?
+        .map(|row| {
+            row.map_err(|error| error.to_string())
+                .and_then(|row| decrypt_row(key, row))
+        })
+        .collect();
+    entries
+}
+
+pub fn merge_backup(
+    path: &Path,
+    key: &[u8; crypto::KEY_BYTES],
+    backup_path: &Path,
+    backup_key: &[u8; crypto::KEY_BYTES],
+    timestamp: i64,
+) -> Result<(usize, usize), String> {
+    let existing = list_full_entries(path, key)?;
+    let mut identities = existing
+        .iter()
+        .map(entry_identity)
+        .collect::<std::collections::HashSet<_>>();
+    let backup_entries = list_full_entries(backup_path, backup_key)?;
+    let mut imported = 0;
+    let mut skipped = 0;
+    for entry in backup_entries {
+        if !identities.insert(entry_identity(&entry)) {
+            skipped += 1;
+            continue;
+        }
+        create_entry(path, key, entry.into_input(), timestamp)?;
+        imported += 1;
+    }
+    Ok((imported, skipped))
+}
+
+fn entry_identity(entry: &VaultEntry) -> (String, String, String) {
+    (
+        entry.title.trim().to_lowercase(),
+        entry.username.trim().to_lowercase(),
+        entry.url.trim().trim_end_matches('/').to_lowercase(),
+    )
+}
+
+pub fn update_entry_preferences(
+    path: &Path,
+    key: &[u8; crypto::KEY_BYTES],
+    id: &str,
+    favorite: Option<bool>,
+    pinned: Option<bool>,
+) -> Result<(), String> {
+    let entry = get_entry(path, key, id)?;
+    let mut input = entry.into_input();
+    if let Some(favorite) = favorite {
+        input.favorite = favorite;
+    }
+    if let Some(pinned) = pinned {
+        input.pinned = pinned;
+    }
+    write_entry_payload(path, key, id, &input, None)
+}
+
+pub fn touch_entry(
+    path: &Path,
+    key: &[u8; crypto::KEY_BYTES],
+    id: &str,
+    timestamp: i64,
+) -> Result<(), String> {
+    let entry = get_entry(path, key, id)?;
+    let mut input = entry.into_input();
+    input.last_used_at = timestamp;
+    write_entry_payload(path, key, id, &input, None)
+}
+
+fn write_entry_payload(
+    path: &Path,
+    key: &[u8; crypto::KEY_BYTES],
+    id: &str,
+    input: &VaultEntryInput,
+    updated_at: Option<i64>,
+) -> Result<(), String> {
+    let plaintext = Zeroizing::new(serde_json::to_vec(input).map_err(|error| error.to_string())?);
+    let (nonce, ciphertext) = crypto::encrypt_entry(key, id, &plaintext)?;
+    let connection = open(path)?;
+    let changed = if let Some(updated_at) = updated_at {
+        connection.execute(
+            "UPDATE vault_entries SET nonce = ?1, ciphertext = ?2, updated_at = ?3 WHERE id = ?4",
+            params![nonce.as_slice(), ciphertext, updated_at, id],
+        )
+    } else {
+        connection.execute(
+            "UPDATE vault_entries SET nonce = ?1, ciphertext = ?2 WHERE id = ?3",
+            params![nonce.as_slice(), ciphertext, id],
+        )
+    }
+    .map_err(|error| error.to_string())?;
+    if changed == 1 {
+        Ok(())
+    } else {
+        Err("密码条目不存在".into())
+    }
+}
+
 pub fn delete_entry(path: &Path, id: &str) -> Result<(), String> {
     let connection = open(path)?;
     let changed = connection
@@ -242,6 +372,42 @@ pub fn write_auto_lock_seconds(path: &Path, seconds: u64) -> Result<(), String> 
         )
         .map(|_| ())
         .map_err(|error| error.to_string())
+}
+
+pub fn read_or_create_browser_token(path: &Path) -> Result<String, String> {
+    let connection = open(path)?;
+    if let Some(token) = connection
+        .query_row(
+            "SELECT value FROM vault_settings WHERE key = 'browser_pairing_token'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+    {
+        return Ok(token);
+    }
+    let token = format!("{}{}", crypto::random_id()?, crypto::random_id()?);
+    connection
+        .execute(
+            "INSERT INTO vault_settings(key, value) VALUES('browser_pairing_token', ?1)",
+            [&token],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(token)
+}
+
+pub fn rotate_browser_token(path: &Path) -> Result<String, String> {
+    let token = format!("{}{}", crypto::random_id()?, crypto::random_id()?);
+    let connection = open(path)?;
+    connection
+        .execute(
+            "INSERT INTO vault_settings(key, value) VALUES('browser_pairing_token', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [&token],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(token)
 }
 
 fn open(path: &Path) -> Result<Connection, String> {

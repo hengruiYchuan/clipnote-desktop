@@ -17,6 +17,53 @@ describe("NotesPanel", () => {
     expect(onDelete).toHaveBeenCalledWith(sampleNote);
   });
 
+  it("exports a note from its card action", async () => {
+    const onExport = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderPanel({ onExport });
+
+    await user.click(
+      screen.getByRole("button", { name: `导出 Markdown：${sampleNote.title}` }),
+    );
+
+    expect(onExport).toHaveBeenCalledWith(sampleNote);
+  });
+
+  it("pins a note into an independent desktop window", async () => {
+    const onDesktopPin = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderPanel({ onDesktopPin });
+
+    await user.click(screen.getByRole("button", { name: "固定到桌面" }));
+
+    expect(onDesktopPin).toHaveBeenCalledWith(sampleNote);
+  });
+
+  it("offers a real retract action for an already pinned note", async () => {
+    const onDesktopPin = vi.fn().mockResolvedValue(undefined);
+    const pinnedNote = { ...sampleNote, desktopPinned: true };
+    const user = userEvent.setup();
+    renderPanel({ notes: [pinnedNote], onDesktopPin });
+
+    await user.click(screen.getByRole("button", { name: "收回桌面便签" }));
+
+    expect(onDesktopPin).toHaveBeenCalledWith(pinnedNote);
+  });
+
+  it("selects notes and exports them into one document", async () => {
+    const onExportMany = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    const secondNote = { ...sampleNote, id: 2, title: "发布结论" };
+    renderPanel({ notes: [sampleNote, secondNote], onExportMany });
+
+    await user.click(screen.getByRole("button", { name: "批量导出" }));
+    await user.click(screen.getByRole("checkbox", { name: `选择便签：${sampleNote.title}` }));
+    await user.click(screen.getByRole("button", { name: "合并导出（1）" }));
+
+    expect(onExportMany).toHaveBeenCalledWith([sampleNote]);
+    expect(screen.getByRole("button", { name: "批量导出" })).toBeVisible();
+  });
+
   it("submits a new note from the editor", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -31,15 +78,16 @@ describe("NotesPanel", () => {
       title: "发布检查",
       body: "确认本地数据闭环",
       tone: "mint",
-      imageData: "",
+      images: [],
     });
   });
 
-  it("attaches a pasted screenshot to an image-only note", async () => {
+  it("inserts multiple pasted screenshots into the note body", async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     renderPanel({ notes: [], editorOpen: true, onSave });
-    const screenshot = new File(["screenshot"], "shot.png", { type: "image/png" });
+    const first = new File(["first"], "first.png", { type: "image/png" });
+    const second = new File(["second"], "second.png", { type: "image/png" });
 
     fireEvent.paste(screen.getByLabelText("内容"), {
       clipboardData: {
@@ -47,22 +95,52 @@ describe("NotesPanel", () => {
           {
             kind: "file",
             type: "image/png",
-            getAsFile: () => screenshot,
+            getAsFile: () => first,
+          },
+          {
+            kind: "file",
+            type: "image/png",
+            getAsFile: () => second,
           },
         ],
       },
     });
 
-    expect(await screen.findByRole("img", { name: "便签截图预览" })).toBeVisible();
+    expect(await screen.findAllByRole("img", { name: "便签截图预览" })).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "保存便签" }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     expect(onSave).toHaveBeenCalledWith({
       title: "",
-      body: "",
+      body: expect.stringMatching(/^{{clipnote-image:[\w-]+}}\n\n{{clipnote-image:[\w-]+}}$/),
       tone: "paper",
-      imageData: expect.stringMatching(/^data:image\/png;base64,/),
+      images: [
+        expect.objectContaining({ dataUrl: expect.stringMatching(/^data:image\/png;base64,/) }),
+        expect.objectContaining({ dataUrl: expect.stringMatching(/^data:image\/png;base64,/) }),
+      ],
     });
+  });
+
+  it("removes one inline screenshot and its body marker", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    const note = {
+      ...sampleNote,
+      body: "之前\n\n{{clipnote-image:first}}\n\n之后\n\n{{clipnote-image:second}}",
+      images: [
+        { id: "first", dataUrl: "data:image/png;base64,Zmlyc3Q=" },
+        { id: "second", dataUrl: "data:image/png;base64,c2Vjb25k" },
+      ],
+    };
+    renderPanel({ notes: [note], editorOpen: true, editingNote: note, onSave });
+
+    await user.click(screen.getAllByRole("button", { name: "移除这张截图" })[0]);
+    await user.click(screen.getByRole("button", { name: "保存便签" }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.not.stringContaining("{{clipnote-image:first}}"),
+      images: [expect.objectContaining({ id: "second" })],
+    }));
   });
 
   it("folds long note text and can expand it", async () => {
@@ -100,6 +178,9 @@ function renderPanel(
       onCloseEditor={vi.fn()}
       onSave={vi.fn().mockResolvedValue(undefined)}
       onDelete={vi.fn().mockResolvedValue(undefined)}
+      onExport={vi.fn().mockResolvedValue(undefined)}
+      onExportMany={vi.fn().mockResolvedValue(undefined)}
+      onDesktopPin={vi.fn().mockResolvedValue(undefined)}
       {...overrides}
     />,
   );

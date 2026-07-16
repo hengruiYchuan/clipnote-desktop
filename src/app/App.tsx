@@ -22,6 +22,7 @@ export function App() {
   const section = useShellStore((state) => state.section);
   const query = useShellStore((state) => state.query);
   const setMode = useShellStore((state) => state.setMode);
+  const setSection = useShellStore((state) => state.setSection);
   const [clips, setClips] = useState<ClipItem[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [paused, setPaused] = useState(false);
@@ -97,6 +98,9 @@ export function App() {
         desktopBridge.onCaptureStateChanged((capturePaused) => {
           if (mounted) setPaused(capturePaused);
         }),
+        desktopBridge.onNotesChanged(() => {
+          if (mounted) void loadNotes().catch((error) => showMessage(toMessage(error), true));
+        }),
       ]);
       if (mounted) disposers.push(...listeners);
       else listeners.forEach((dispose) => dispose());
@@ -138,7 +142,7 @@ export function App() {
       if (messageTimer.current) window.clearTimeout(messageTimer.current);
       if (petTimer.current) window.clearTimeout(petTimer.current);
     };
-  }, [loadClips, setMode, showMessage]);
+  }, [loadClips, loadNotes, setMode, showMessage]);
 
   const run = async (
     action: () => Promise<void>,
@@ -216,6 +220,37 @@ export function App() {
           onDelete={async (note) => {
             await run(() => desktopBridge.deleteNote(note.id), "便签已删除", loadNotes);
           }}
+          onExport={async (note) => {
+            setBusy(true);
+            try {
+              const exported = await desktopBridge.exportNoteMarkdown(note);
+              if (exported) showMessage("Markdown 与图片资源已导出");
+            } catch (error) {
+              showMessage(toMessage(error), true);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          onExportMany={async (selectedNotes) => {
+            setBusy(true);
+            try {
+              const exported = await desktopBridge.exportNotesMarkdown(selectedNotes);
+              if (exported) showMessage("便签合集与图片资源已导出");
+            } catch (error) {
+              showMessage(toMessage(error), true);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          onDesktopPin={async (note) => {
+            await run(
+              () => note.desktopPinned
+                ? desktopBridge.retractDesktopNote(note.id)
+                : desktopBridge.openDesktopNote(note.id),
+              note.desktopPinned ? "桌面便签已收回" : "已固定到桌面",
+              loadNotes,
+            );
+          }}
         />
       ) : section === "settings" ? (
         <SettingsPanel
@@ -255,7 +290,55 @@ export function App() {
           onGeneratedPet={() => {
             void loadPets();
           }}
+          onPickWindow={async () => {
+            setBusy(true);
+            try {
+              return await desktopBridge.pickWindowProcess();
+            } catch (error) {
+              showMessage(toMessage(error), true);
+              return null;
+            } finally {
+              setBusy(false);
+            }
+          }}
+          onTerminateWindowProcess={(target) =>
+            run(
+              () => desktopBridge.terminateWindowProcess(target),
+              target.closeWindowOnly ? "白屏窗口已关闭" : `${target.processName} 已结束`,
+            )
+          }
           onMessage={showMessage}
+          onExportBackup={() => {
+            void (async () => {
+              setBusy(true);
+              try {
+                if (await desktopBridge.exportFullBackup(preferences)) {
+                  showMessage("完整备份已导出");
+                }
+              } catch (error) {
+                showMessage(toMessage(error), true);
+              } finally {
+                setBusy(false);
+              }
+            })();
+          }}
+          onRestoreBackup={() => {
+            void (async () => {
+              setBusy(true);
+              try {
+                const restored = await desktopBridge.restoreFullBackup();
+                if (!restored) return;
+                const restoredPreferences = JSON.parse(restored.preferencesJson);
+                setPreferences(restoredPreferences);
+                await Promise.all([loadClips(), loadNotes(), loadPets()]);
+                showMessage(`已恢复 ${restored.clips} 条剪贴板和 ${restored.notes} 张便签`);
+              } catch (error) {
+                showMessage(toMessage(error), true);
+              } finally {
+                setBusy(false);
+              }
+            })();
+          }}
           onToggleAutostart={() => {
             const nextEnabled = !autostartEnabled;
             void run(
@@ -303,6 +386,37 @@ export function App() {
               loadClips,
             );
           }}
+          onCreateNote={(items) => {
+            void (async () => {
+              setBusy(true);
+              try {
+                const note = await desktopBridge.createNoteFromClips(items.map((item) => item.id));
+                await loadNotes();
+                setEditingNote(note);
+                setEditorOpen(true);
+                setSection("notes");
+                showMessage(items.length === 1 ? "已转为便签" : `已合并 ${items.length} 条内容`);
+              } catch (error) {
+                showMessage(toMessage(error), true);
+              } finally {
+                setBusy(false);
+              }
+            })();
+          }}
+          onCreateSmartNote={async (item, result) => {
+            const note = await desktopBridge.createNote({
+              title: `智能处理 · ${item.title}`,
+              body: result,
+              tone: "mint",
+              images: [],
+            });
+            await loadNotes();
+            setEditingNote(note);
+            setEditorOpen(true);
+            setSection("notes");
+            showMessage("智能结果已保存为便签");
+          }}
+          onMessage={showMessage}
         />
       )}
     </Workspace>

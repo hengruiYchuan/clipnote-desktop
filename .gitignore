@@ -3,6 +3,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+.playwright-cli/
 src-tauri/target/
 .env
 .env.*
@@ -15,3 +16,8 @@ Thumbs.db
 .codegraph/
 .cursor/
 .vscode/
+
+# Local development notes
+/task_plan.md
+/findings.md
+/progress.md

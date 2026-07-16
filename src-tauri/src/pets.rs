@@ -24,6 +24,12 @@ pub struct PetState {
     root: Arc<PathBuf>,
 }
 
+impl PetState {
+    pub(crate) fn root(&self) -> &Path {
+        self.root.as_ref()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PetAnimation {
@@ -389,18 +395,37 @@ pub fn install_generated_pet(
     description: &str,
     source_png: &[u8],
 ) -> Result<PetSummary, String> {
+    install_generated_pet_states(state, name, description, &[source_png.to_vec()])
+}
+
+pub fn install_generated_pet_states(
+    state: &PetState,
+    name: &str,
+    description: &str,
+    source_pngs: &[Vec<u8>],
+) -> Result<PetSummary, String> {
     validate_text(name, 1, 48, "宠物名称")?;
     validate_text(description, 0, 160, "宠物描述")?;
-    let source = image::load_from_memory_with_format(source_png, ImageFormat::Png)
-        .map_err(|_| "AI 返回的宠物原画格式无效".to_string())?
-        .into_rgba8();
-    if source.width() == 0
-        || source.height() == 0
-        || source.width() > 4096
-        || source.height() > 4096
-    {
-        return Err("AI 返回的宠物原画尺寸无效".into());
+    if source_pngs.len() != 1 && source_pngs.len() != 5 {
+        return Err("桌宠状态原画数量无效".into());
     }
+    let sources = source_pngs
+        .iter()
+        .map(|bytes| {
+            let mut source = image::load_from_memory_with_format(bytes, ImageFormat::Png)
+                .map_err(|_| "AI 返回的宠物原画格式无效".to_string())?
+                .into_rgba8();
+            if source.width() == 0
+                || source.height() == 0
+                || source.width() > 4096
+                || source.height() > 4096
+            {
+                return Err("AI 返回的宠物原画尺寸无效".into());
+            }
+            remove_green_background(&mut source);
+            Ok(source)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
 
     let id = generated_pet_id()?;
     let target = managed_pet_directory(state.root.as_ref(), &id)?;
@@ -411,7 +436,7 @@ pub fn install_generated_pet(
     fs::create_dir(&temporary).map_err(|error| error.to_string())?;
 
     let manifest = generated_manifest(id.clone(), name, description);
-    let atlas = build_generated_atlas(&source)?;
+    let atlas = build_generated_atlas_from_states(&sources)?;
     let preview = imageops::crop_imm(&atlas, 0, 0, 128, 128).to_image();
     let result = (|| {
         fs::write(
@@ -494,13 +519,15 @@ fn generated_manifest(id: String, name: &str, description: &str) -> PetManifest 
     }
 }
 
+#[cfg(test)]
 fn build_generated_atlas(source: &RgbaImage) -> Result<RgbaImage, String> {
-    let bounds = alpha_bounds(source).ok_or_else(|| "AI 返回的原画没有可见内容".to_string())?;
-    let cropped = imageops::crop_imm(source, bounds.0, bounds.1, bounds.2, bounds.3).to_image();
-    let scale = (104.0 / cropped.width() as f32).min(104.0 / cropped.height() as f32);
-    let width = ((cropped.width() as f32 * scale).round() as u32).max(1);
-    let height = ((cropped.height() as f32 * scale).round() as u32).max(1);
-    let base = imageops::resize(&cropped, width, height, imageops::FilterType::Lanczos3);
+    build_generated_atlas_from_states(std::slice::from_ref(source))
+}
+
+fn build_generated_atlas_from_states(sources: &[RgbaImage]) -> Result<RgbaImage, String> {
+    if sources.len() != 1 && sources.len() != 5 {
+        return Err("桌宠状态原画数量无效".into());
+    }
     let mut atlas = RgbaImage::new(SPRITE_WIDTH, SPRITE_HEIGHT);
     let row_offsets: [[(i32, i32); 8]; 5] = [
         [
@@ -555,9 +582,20 @@ fn build_generated_atlas(source: &RgbaImage) -> Result<RgbaImage, String> {
         ],
     ];
     for (row, offsets) in row_offsets.iter().enumerate() {
+        let source = if sources.len() == 5 {
+            &sources[row]
+        } else {
+            &sources[0]
+        };
+        let bounds = alpha_bounds(source).ok_or_else(|| "AI 返回的原画没有可见内容".to_string())?;
+        let cropped = imageops::crop_imm(source, bounds.0, bounds.1, bounds.2, bounds.3).to_image();
+        let scale = (104.0 / cropped.width() as f32).min(104.0 / cropped.height() as f32);
+        let width = ((cropped.width() as f32 * scale).round() as u32).max(1);
+        let height = ((cropped.height() as f32 * scale).round() as u32).max(1);
+        let base = imageops::resize(&cropped, width, height, imageops::FilterType::Lanczos3);
         for (column, (dx, dy)) in offsets.iter().enumerate() {
             let mut frame = base.clone();
-            if row == 1 {
+            if sources.len() == 1 && row == 1 {
                 for pixel in frame.pixels_mut() {
                     let gray =
                         (u16::from(pixel[0]) + u16::from(pixel[1]) + u16::from(pixel[2])) / 3;
@@ -565,7 +603,7 @@ fn build_generated_atlas(source: &RgbaImage) -> Result<RgbaImage, String> {
                     pixel[1] = gray as u8;
                     pixel[2] = gray as u8;
                 }
-            } else if row == 4 {
+            } else if sources.len() == 1 && row == 4 {
                 for pixel in frame.pixels_mut() {
                     pixel[0] = pixel[0].saturating_add(28);
                     pixel[1] = pixel[1].saturating_sub(18);
@@ -596,6 +634,37 @@ fn alpha_bounds(image: &RgbaImage) -> Option<(u32, u32, u32, u32)> {
         max_y = max_y.max(y);
     }
     found.then_some((min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
+}
+
+fn remove_green_background(image: &mut RgbaImage) {
+    let maximum_x = image.width().saturating_sub(1);
+    let maximum_y = image.height().saturating_sub(1);
+    let corners = [
+        image.get_pixel(0, 0),
+        image.get_pixel(maximum_x, 0),
+        image.get_pixel(0, maximum_y),
+        image.get_pixel(maximum_x, maximum_y),
+    ];
+    if corners
+        .iter()
+        .filter(|pixel| is_chroma_green(pixel))
+        .count()
+        < 3
+    {
+        return;
+    }
+    for pixel in image.pixels_mut() {
+        if is_chroma_green(pixel) {
+            pixel[3] = 0;
+        }
+    }
+}
+
+fn is_chroma_green(pixel: &image::Rgba<u8>) -> bool {
+    let red = i16::from(pixel[0]);
+    let green = i16::from(pixel[1]);
+    let blue = i16::from(pixel[2]);
+    green > 170 && green - red > 70 && green - blue > 70
 }
 
 #[cfg(test)]

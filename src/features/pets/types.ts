@@ -30,6 +30,21 @@ export type PetDefinition = Omit<PetSummary, "previewDataUrl" | "builtIn"> & {
   animations: Record<PetVisualState, PetAnimation>;
 };
 
+export type AiPetProviderStatus = {
+  provider: string;
+  configured: boolean;
+  baseUrl: string;
+  model: string;
+  textModel?: string;
+};
+
+export type AiPetProviderInput = {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  textModel?: string;
+};
+
 export const builtinPet: PetSummary = {
   id: "clipnote",
   name: "纸片夹精灵",

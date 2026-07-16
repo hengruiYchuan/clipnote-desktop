@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, Edit3, ImagePlus, Maximize2, PenLine, Save, Trash2, X } from "lucide-react";
+import { Check, Download, Edit3, ImagePlus, Maximize2, PenLine, Pin, Save, Trash2, X } from "lucide-react";
 import { motion } from "motion/react";
 import { IconButton } from "../../components/IconButton";
-import type { Note, NoteInput, NoteTone } from "../../types/content";
+import type { Note, NoteImage, NoteInput, NoteTone } from "../../types/content";
 
 type NotesPanelProps = {
   notes: Note[];
@@ -15,6 +15,9 @@ type NotesPanelProps = {
   onCloseEditor: () => void;
   onSave: (input: NoteInput) => Promise<void>;
   onDelete: (note: Note) => Promise<void>;
+  onExport: (note: Note) => Promise<void>;
+  onExportMany: (notes: Note[]) => Promise<void>;
+  onDesktopPin: (note: Note) => Promise<void>;
 };
 
 export function NotesPanel({
@@ -28,10 +31,15 @@ export function NotesPanel({
   onCloseEditor,
   onSave,
   onDelete,
+  onExport,
+  onExportMany,
+  onDesktopPin,
 }: NotesPanelProps) {
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
-  const [previewingNote, setPreviewingNote] = useState<Note | null>(null);
+  const [previewingImage, setPreviewingImage] = useState<{ note: Note; image: NoteImage } | null>(null);
   const [expandedBodyIds, setExpandedBodyIds] = useState<Set<number>>(() => new Set());
+  const [batchExportOpen, setBatchExportOpen] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<number>>(() => new Set());
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visible = notes.filter((note) =>
     `${note.title} ${note.body}`.toLocaleLowerCase().includes(normalizedQuery),
@@ -47,6 +55,18 @@ export function NotesPanel({
       return next;
     });
   };
+  const closeBatchExport = () => {
+    setBatchExportOpen(false);
+    setSelectedNoteIds(new Set());
+  };
+  const toggleSelectedNote = (id: number) => {
+    setSelectedNoteIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <section className="notes" aria-label="便签工作桌">
@@ -55,10 +75,49 @@ export function NotesPanel({
           <span>NOTE DESK</span>
           <h2>把临时想法，钉在今天。</h2>
         </div>
-        <button type="button" onClick={onNew} disabled={busy}>
-          <PenLine aria-hidden="true" />
-          新建便签
-        </button>
+        <div className="notes__heading-actions">
+          {batchExportOpen ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedNoteIds(new Set(visible.map((note) => note.id)))}
+                disabled={busy || visible.length === 0}
+              >
+                <Check aria-hidden="true" />
+                全选当前
+              </button>
+              <button type="button" onClick={closeBatchExport} disabled={busy}>
+                <X aria-hidden="true" />
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={busy || selectedNoteIds.size === 0}
+                onClick={() => void onExportMany(
+                  notes.filter((note) => selectedNoteIds.has(note.id)),
+                ).then(closeBatchExport)}
+              >
+                <Download aria-hidden="true" />
+                合并导出（{selectedNoteIds.size}）
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setBatchExportOpen(true)}
+                disabled={busy || notes.length === 0}
+              >
+                <Download aria-hidden="true" />
+                批量导出
+              </button>
+              <button type="button" onClick={onNew} disabled={busy}>
+                <PenLine aria-hidden="true" />
+                新建便签
+              </button>
+            </>
+          )}
+        </div>
       </header>
       <div className="notes__grid">
         {visible.map((note, index) => (
@@ -66,12 +125,44 @@ export function NotesPanel({
             key={note.id}
             className="note-sheet"
             data-tone={note.tone}
+            data-selected={selectedNoteIds.has(note.id) || undefined}
             initial={{ rotate: index % 2 ? 1.2 : -1 }}
             animate={{ rotate: index % 2 ? 0.6 : -0.5 }}
           >
-            <div className="note-sheet__heading">
+            <div className="note-sheet__heading" data-selecting={batchExportOpen || undefined}>
+              {batchExportOpen && (
+                <label className="note-sheet__selector">
+                  <input
+                    type="checkbox"
+                    aria-label={`选择便签：${note.title}`}
+                    checked={selectedNoteIds.has(note.id)}
+                    onChange={() => toggleSelectedNote(note.id)}
+                  />
+                  <span aria-hidden="true">
+                    {selectedNoteIds.has(note.id) && <Check />}
+                  </span>
+                </label>
+              )}
               <h3>{note.title}</h3>
-              <div className="note-sheet__actions">
+              {note.sourceClipIds.length > 0 && (
+                <span className="note-sheet__source">来自 {note.sourceClipIds.length} 条剪贴板</span>
+              )}
+              {!batchExportOpen && <div className="note-sheet__actions">
+                <IconButton
+                  label={note.desktopPinned ? "收回桌面便签" : "固定到桌面"}
+                  onClick={() => void onDesktopPin(note)}
+                  disabled={busy}
+                  aria-pressed={note.desktopPinned}
+                >
+                  <Pin aria-hidden="true" fill={note.desktopPinned ? "currentColor" : "none"} />
+                </IconButton>
+                <IconButton
+                  label={`导出 Markdown：${note.title}`}
+                  onClick={() => void onExport(note)}
+                  disabled={busy}
+                >
+                  <Download aria-hidden="true" />
+                </IconButton>
                 <IconButton label={`编辑：${note.title}`} onClick={() => onEdit(note)}>
                   <Edit3 aria-hidden="true" />
                 </IconButton>
@@ -81,24 +172,14 @@ export function NotesPanel({
                 >
                   <Trash2 aria-hidden="true" />
                 </IconButton>
-              </div>
+              </div>}
             </div>
-            {note.imageData && (
-              <button
-                className="note-sheet__image"
-                type="button"
-                aria-label={`查看截图：${note.title}`}
-                onClick={() => setPreviewingNote(note)}
-              >
-                <img src={note.imageData} alt="" />
-                <Maximize2 aria-hidden="true" />
-              </button>
-            )}
-            {note.body && (
+            {(note.body || note.images.length > 0) && (
               <NoteBody
                 note={note}
                 expanded={expandedBodyIds.has(note.id)}
                 onToggle={() => toggleBody(note.id)}
+                onViewImage={(image) => setPreviewingImage({ note, image })}
               />
             )}
             {pendingDelete === note.id && (
@@ -128,23 +209,26 @@ export function NotesPanel({
           onSave={onSave}
         />
       )}
-      {previewingNote && (
+      {previewingImage && (
         <div
           className="note-image-viewer"
           role="dialog"
           aria-modal="true"
-          aria-label={`截图：${previewingNote.title}`}
+          aria-label={`截图：${previewingImage.note.title}`}
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target) setPreviewingNote(null);
+            if (event.currentTarget === event.target) setPreviewingImage(null);
           }}
         >
           <header>
-            <span>{previewingNote.title}</span>
-            <IconButton label="关闭截图预览" onClick={() => setPreviewingNote(null)}>
+            <span>{previewingImage.note.title}</span>
+            <IconButton label="关闭截图预览" onClick={() => setPreviewingImage(null)}>
               <X aria-hidden="true" />
             </IconButton>
           </header>
-          <img src={previewingNote.imageData} alt={`便签截图：${previewingNote.title}`} />
+          <img
+            src={previewingImage.image.dataUrl}
+            alt={`便签截图：${previewingImage.note.title}`}
+          />
         </div>
       )}
     </section>
@@ -165,19 +249,26 @@ function NoteBody({
   note,
   expanded,
   onToggle,
+  onViewImage,
 }: {
   note: Note;
   expanded: boolean;
   onToggle: () => void;
+  onViewImage: (image: NoteImage) => void;
 }) {
   const collapsible = shouldCollapseBody(note.body);
   const bodyId = `note-body-${note.id}`;
 
   return (
     <div className="note-sheet__body">
-      <p id={bodyId} data-expanded={expanded || undefined}>
-        {note.body}
-      </p>
+      <div id={bodyId} className="note-sheet__content" data-expanded={expanded || undefined}>
+        <NoteContent
+          body={note.body}
+          images={note.images}
+          title={note.title}
+          onViewImage={onViewImage}
+        />
+      </div>
       {collapsible && (
         <button
           className="note-sheet__body-toggle"
@@ -194,7 +285,97 @@ function NoteBody({
 }
 
 const MAX_IMAGE_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_NOTE_IMAGES = 8;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const NOTE_IMAGE_PATTERN = /{{clipnote-image:([A-Za-z0-9_-]+)}}/g;
+
+function noteImageToken(id: string) {
+  return `{{clipnote-image:${id}}}`;
+}
+
+function createNoteImageIds(images: NoteImage[], count: number) {
+  const usedIds = new Set(images.map((image) => image.id));
+  let sequence = 1;
+  return Array.from({ length: count }, () => {
+    while (usedIds.has(`img-${sequence}`)) sequence += 1;
+    const id = `img-${sequence}`;
+    usedIds.add(id);
+    sequence += 1;
+    return id;
+  });
+}
+
+function NoteContent({
+  body,
+  images,
+  title,
+  onViewImage,
+  onRemoveImage,
+}: {
+  body: string;
+  images: NoteImage[];
+  title: string;
+  onViewImage?: (image: NoteImage) => void;
+  onRemoveImage?: (image: NoteImage) => void;
+}) {
+  const content: React.ReactNode[] = [];
+  const renderedImageIds = new Set<string>();
+  let cursor = 0;
+  for (const match of body.matchAll(NOTE_IMAGE_PATTERN)) {
+    if (match.index > cursor) {
+      content.push(<p key={`text-${cursor}`}>{body.slice(cursor, match.index)}</p>);
+    }
+    const image = images.find((candidate) => candidate.id === match[1]);
+    if (image) {
+      renderedImageIds.add(image.id);
+      content.push(
+        <div className="note-content__image" key={image.id}>
+          <button
+            className="note-sheet__image"
+            type="button"
+            aria-label={`查看截图：${title}`}
+            onClick={() => onViewImage?.(image)}
+            disabled={!onViewImage}
+          >
+            <img src={image.dataUrl} alt={onRemoveImage ? "便签截图预览" : ""} />
+            {onViewImage && <Maximize2 aria-hidden="true" />}
+          </button>
+          {onRemoveImage && (
+            <IconButton label="移除这张截图" onClick={() => onRemoveImage(image)}>
+              <Trash2 aria-hidden="true" />
+            </IconButton>
+          )}
+        </div>,
+      );
+    } else {
+      content.push(<p key={`missing-${cursor}`}>{match[0]}</p>);
+    }
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < body.length) content.push(<p key={`text-${cursor}`}>{body.slice(cursor)}</p>);
+  for (const image of images.filter((candidate) => !renderedImageIds.has(candidate.id))) {
+    content.push(
+      <div className="note-content__image" key={`orphan-${image.id}`}>
+        <button
+          className="note-sheet__image"
+          type="button"
+          aria-label={`查看截图：${title}`}
+          onClick={() => onViewImage?.(image)}
+          disabled={!onViewImage}
+        >
+          <img src={image.dataUrl} alt={onRemoveImage ? "便签截图预览" : ""} />
+          {onViewImage && <Maximize2 aria-hidden="true" />}
+        </button>
+        {onRemoveImage && (
+          <IconButton label="移除这张截图" onClick={() => onRemoveImage(image)}>
+            <Trash2 aria-hidden="true" />
+          </IconButton>
+        )}
+      </div>,
+    );
+  }
+  return content;
+}
 
 function readNoteImage(file: File) {
   if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
@@ -225,19 +406,44 @@ function NoteEditor({
   const [title, setTitle] = useState(note?.title ?? "");
   const [body, setBody] = useState(note?.body ?? "");
   const [tone, setTone] = useState<NoteTone>(note?.tone ?? "paper");
-  const [imageData, setImageData] = useState(note?.imageData ?? "");
+  const [images, setImages] = useState<NoteImage[]>(note?.images ?? []);
   const [validation, setValidation] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
 
-  const attachImage = async (file: File) => {
+  const attachImages = async (files: File[]) => {
+    if (!files.length) return;
+    if (images.length + files.length > MAX_NOTE_IMAGES) {
+      setValidation(`每张便签最多添加 ${MAX_NOTE_IMAGES} 张图片`);
+      return;
+    }
+    const selectionStart = bodyRef.current?.selectionStart ?? body.length;
+    const selectionEnd = bodyRef.current?.selectionEnd ?? selectionStart;
     try {
-      setImageData(await readNoteImage(file));
+      const imageIds = createNoteImageIds(images, files.length);
+      const additions = await Promise.all(files.map(async (file, index) => ({
+        id: imageIds[index],
+        dataUrl: await readNoteImage(file),
+      })));
+      const inserted = additions.map((image) => noteImageToken(image.id)).join("\n\n");
+      const before = body.slice(0, selectionStart);
+      const after = body.slice(selectionEnd);
+      const leading = before && !before.endsWith("\n") ? "\n\n" : "";
+      const trailing = after && !after.startsWith("\n") ? "\n\n" : "";
+      const nextBody = `${before}${leading}${inserted}${trailing}${after}`;
+      const nextCaret = before.length + leading.length + inserted.length + trailing.length;
+      setBody(nextBody);
+      setImages((current) => [...current, ...additions]);
       setValidation("");
+      requestAnimationFrame(() => {
+        bodyRef.current?.focus();
+        bodyRef.current?.setSelectionRange(nextCaret, nextCaret);
+      });
     } catch (error) {
       setValidation(error instanceof Error ? error.message : String(error));
     }
@@ -245,12 +451,12 @@ function NoteEditor({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!title.trim() && !body.trim() && !imageData) {
+    if (!title.trim() && !body.trim() && images.length === 0) {
       setValidation("便签内容不能为空");
       return;
     }
     setValidation("");
-    await onSave({ title, body, tone, imageData });
+    await onSave({ title, body, tone, images });
   };
 
   return (
@@ -264,19 +470,20 @@ function NoteEditor({
         aria-labelledby="note-editor-title"
         onSubmit={(event) => void submit(event)}
         onPaste={(event) => {
-          const image = Array.from(event.clipboardData.items)
-            .find((item) => item.kind === "file" && item.type.startsWith("image/"))
-            ?.getAsFile();
-          if (!image) return;
+          const pastedImages = Array.from(event.clipboardData.items)
+            .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+            .map((item) => item.getAsFile())
+            .filter((file): file is File => Boolean(file));
+          if (!pastedImages.length) return;
           event.preventDefault();
-          void attachImage(image);
+          void attachImages(pastedImages);
         }}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
-          const image = Array.from(event.dataTransfer.files)
-            .find((file) => file.type.startsWith("image/"));
-          if (image) void attachImage(image);
+          const droppedImages = Array.from(event.dataTransfer.files)
+            .filter((file) => file.type.startsWith("image/"));
+          void attachImages(droppedImages);
         }}
       >
         <header>
@@ -297,39 +504,44 @@ function NoteEditor({
         <label>
           <span>内容</span>
           <textarea
+            ref={bodyRef}
             value={body}
-            rows={9}
+            rows={6}
             onChange={(event) => setBody(event.target.value)}
           />
         </label>
         <section className="note-editor__attachment" aria-labelledby="note-attachment-title">
           <div className="note-editor__attachment-heading">
             <span id="note-attachment-title">截图</span>
-            {imageData && (
-              <button type="button" onClick={() => imageInputRef.current?.click()}>
-                <ImagePlus aria-hidden="true" />
-                更换图片
-              </button>
-            )}
+            <button type="button" onClick={() => imageInputRef.current?.click()}>
+              <ImagePlus aria-hidden="true" />
+              插入图片{images.length ? `（${images.length}/${MAX_NOTE_IMAGES}）` : ""}
+            </button>
           </div>
           <input
             ref={imageInputRef}
             className="sr-only"
             type="file"
+            multiple
             accept="image/png,image/jpeg,image/webp,image/gif"
             aria-label="选择截图文件"
             onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
+              const files = Array.from(event.currentTarget.files ?? []);
               event.currentTarget.value = "";
-              if (file) void attachImage(file);
+              void attachImages(files);
             }}
           />
-          {imageData ? (
-            <div className="note-editor__image-preview">
-              <img src={imageData} alt="便签截图预览" />
-              <IconButton label="移除截图" onClick={() => setImageData("")}>
-                <Trash2 aria-hidden="true" />
-              </IconButton>
+          {images.length ? (
+            <div className="note-editor__content-preview" aria-label="便签内容预览">
+              <NoteContent
+                body={body}
+                images={images}
+                title={title || "未命名便签"}
+                onRemoveImage={(image) => {
+                  setImages((current) => current.filter((candidate) => candidate.id !== image.id));
+                  setBody((current) => current.split(noteImageToken(image.id)).join(""));
+                }}
+              />
             </div>
           ) : (
             <button
@@ -338,7 +550,7 @@ function NoteEditor({
               onClick={() => imageInputRef.current?.click()}
             >
               <ImagePlus aria-hidden="true" />
-              添加图片
+              在光标处插入图片
             </button>
           )}
         </section>

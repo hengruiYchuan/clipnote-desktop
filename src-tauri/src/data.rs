@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -16,6 +17,9 @@ use tauri::{AppHandle, Emitter, Manager, State};
 const MAX_CLIP_BYTES: usize = 256 * 1024;
 const MAX_NOTE_BYTES: usize = 256 * 1024;
 const MAX_NOTE_IMAGE_BYTES: usize = 6 * 1024 * 1024;
+const MAX_NOTE_IMAGES: usize = 8;
+const MAX_NOTE_IMAGES_BYTES: usize = 24 * 1024 * 1024;
+const NOTE_IMAGE_TOKEN_PREFIX: &str = "{{clipnote-image:";
 const CLIPBOARD_POLL_INTERVAL: Duration = Duration::from_millis(650);
 
 #[derive(Clone)]
@@ -26,6 +30,9 @@ pub struct DataState {
 }
 
 impl DataState {
+    pub(crate) fn db_path(&self) -> &Path {
+        self.db_path.as_ref()
+    }
     pub fn is_paused(&self) -> bool {
         self.paused.load(Ordering::Relaxed)
     }
@@ -60,14 +67,28 @@ pub struct ClipItem {
     use_count: i64,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteImage {
+    id: String,
+    data_url: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
-    id: i64,
+    pub(crate) id: i64,
     title: String,
     body: String,
     tone: String,
-    image_data: String,
+    images: Vec<NoteImage>,
+    source_clip_ids: Vec<i64>,
+    pub(crate) desktop_pinned: bool,
+    pub(crate) desktop_x: Option<i32>,
+    pub(crate) desktop_y: Option<i32>,
+    pub(crate) desktop_width: i32,
+    pub(crate) desktop_height: i32,
+    pub(crate) always_on_top: bool,
     created_at: i64,
     updated_at: i64,
 }
@@ -79,7 +100,7 @@ pub struct NoteInput {
     body: String,
     tone: String,
     #[serde(default)]
-    image_data: String,
+    images: Vec<NoteImage>,
 }
 
 pub fn initialize(app: &AppHandle) -> Result<DataState, String> {
@@ -178,7 +199,7 @@ fn clipboard_sequence_number() -> Option<u32> {
     None
 }
 
-fn open_connection(path: &Path) -> Result<Connection, String> {
+pub(crate) fn open_connection(path: &Path) -> Result<Connection, String> {
     let connection = Connection::open(path).map_err(|error| error.to_string())?;
     connection
         .busy_timeout(Duration::from_secs(2))
@@ -186,7 +207,7 @@ fn open_connection(path: &Path) -> Result<Connection, String> {
     Ok(connection)
 }
 
-fn initialize_schema(connection: &Connection) -> Result<(), String> {
+pub(crate) fn initialize_schema(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             "PRAGMA journal_mode = WAL;
@@ -208,6 +229,14 @@ fn initialize_schema(connection: &Connection) -> Result<(), String> {
                body TEXT NOT NULL,
                tone TEXT NOT NULL,
                image_data TEXT NOT NULL DEFAULT '',
+               images_json TEXT NOT NULL DEFAULT '[]',
+               source_clip_ids TEXT NOT NULL DEFAULT '[]',
+               desktop_pinned INTEGER NOT NULL DEFAULT 0,
+               desktop_x INTEGER,
+               desktop_y INTEGER,
+               desktop_width INTEGER NOT NULL DEFAULT 320,
+               desktop_height INTEGER NOT NULL DEFAULT 260,
+               always_on_top INTEGER NOT NULL DEFAULT 1,
                created_at INTEGER NOT NULL,
                updated_at INTEGER NOT NULL
              );
@@ -219,10 +248,10 @@ fn initialize_schema(connection: &Connection) -> Result<(), String> {
              );",
         )
         .map_err(|error| error.to_string())?;
-    ensure_note_image_column(connection)
+    ensure_note_columns(connection)
 }
 
-fn ensure_note_image_column(connection: &Connection) -> Result<(), String> {
+fn ensure_note_columns(connection: &Connection) -> Result<(), String> {
     let mut statement = connection
         .prepare("PRAGMA table_info(notes)")
         .map_err(|error| error.to_string())?;
@@ -238,6 +267,32 @@ fn ensure_note_image_column(connection: &Connection) -> Result<(), String> {
                 [],
             )
             .map_err(|error| error.to_string())?;
+    }
+    if !columns.iter().any(|column| column == "images_json") {
+        connection
+            .execute(
+                "ALTER TABLE notes ADD COLUMN images_json TEXT NOT NULL DEFAULT '[]'",
+                [],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    for (name, definition) in [
+        ("source_clip_ids", "TEXT NOT NULL DEFAULT '[]'"),
+        ("desktop_pinned", "INTEGER NOT NULL DEFAULT 0"),
+        ("desktop_x", "INTEGER"),
+        ("desktop_y", "INTEGER"),
+        ("desktop_width", "INTEGER NOT NULL DEFAULT 320"),
+        ("desktop_height", "INTEGER NOT NULL DEFAULT 260"),
+        ("always_on_top", "INTEGER NOT NULL DEFAULT 1"),
+    ] {
+        if !columns.iter().any(|column| column == name) {
+            connection
+                .execute(
+                    &format!("ALTER TABLE notes ADD COLUMN {name} {definition}"),
+                    [],
+                )
+                .map_err(|error| error.to_string())?;
+        }
     }
     Ok(())
 }
@@ -486,7 +541,9 @@ pub fn list_notes(state: State<'_, DataState>) -> Result<Vec<Note>, String> {
 fn list_notes_from(connection: &Connection) -> Result<Vec<Note>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, title, body, tone, image_data, created_at, updated_at
+            "SELECT id, title, body, tone, image_data, images_json, source_clip_ids,
+                    desktop_pinned, desktop_x, desktop_y, desktop_width, desktop_height,
+                    always_on_top, created_at, updated_at
              FROM notes ORDER BY updated_at DESC, id DESC",
         )
         .map_err(|error| error.to_string())?;
@@ -499,60 +556,397 @@ fn list_notes_from(connection: &Connection) -> Result<Vec<Note>, String> {
 }
 
 fn note_from_row(row: &Row<'_>) -> rusqlite::Result<Note> {
+    let mut body: String = row.get(2)?;
+    let legacy_image: String = row.get(4)?;
+    let images_json: String = row.get(5)?;
+    let source_clip_ids_json: String = row.get(6)?;
+    let mut images = serde_json::from_str::<Vec<NoteImage>>(&images_json).unwrap_or_default();
+    if images.is_empty() && !legacy_image.is_empty() {
+        images.push(NoteImage {
+            id: "legacy".into(),
+            data_url: legacy_image,
+        });
+        if !body.contains(&note_image_token("legacy")) {
+            body = if body.is_empty() {
+                note_image_token("legacy")
+            } else {
+                format!("{}\n\n{body}", note_image_token("legacy"))
+            };
+        }
+    }
     Ok(Note {
         id: row.get(0)?,
         title: row.get(1)?,
-        body: row.get(2)?,
+        body,
         tone: row.get(3)?,
-        image_data: row.get(4)?,
-        created_at: row.get(5)?,
-        updated_at: row.get(6)?,
+        images,
+        source_clip_ids: serde_json::from_str(&source_clip_ids_json).unwrap_or_default(),
+        desktop_pinned: row.get::<_, i64>(7)? != 0,
+        desktop_x: row.get(8)?,
+        desktop_y: row.get(9)?,
+        desktop_width: row.get(10)?,
+        desktop_height: row.get(11)?,
+        always_on_top: row.get::<_, i64>(12)? != 0,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
     })
 }
 
 #[tauri::command]
-pub fn create_note(state: State<'_, DataState>, input: NoteInput) -> Result<Note, String> {
+pub fn get_note(state: State<'_, DataState>, id: i64) -> Result<Note, String> {
     let connection = open_connection(&state.db_path)?;
-    let (title, body, tone, image_data) = validate_note(input)?;
+    note_by_id(&connection, id).map_err(|_| "便签不存在".to_string())
+}
+
+#[tauri::command]
+pub fn create_note_from_clips(
+    app: AppHandle,
+    state: State<'_, DataState>,
+    ids: Vec<i64>,
+) -> Result<Note, String> {
+    let connection = open_connection(&state.db_path)?;
+    let note = create_note_from_clips_in(&connection, &ids)?;
+    app.emit("notes-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(note)
+}
+
+fn create_note_from_clips_in(connection: &Connection, ids: &[i64]) -> Result<Note, String> {
+    if ids.is_empty() || ids.len() > 100 {
+        return Err("请选择 1 到 100 条剪贴板记录".into());
+    }
+    if ids
+        .iter()
+        .enumerate()
+        .any(|(index, id)| ids[..index].contains(id))
+    {
+        return Err("剪贴板选择中包含重复记录".into());
+    }
+    let mut clips = Vec::with_capacity(ids.len());
+    for id in ids {
+        let clip = connection
+            .query_row(
+                "SELECT title, content FROM clips WHERE id = ?1",
+                [id],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "有剪贴板记录已不存在".to_string())?;
+        clips.push(clip);
+    }
+    let title = if clips.len() == 1 {
+        clips[0].0.clone()
+    } else {
+        format!("来自剪贴板的 {} 条内容", clips.len())
+    };
+    let body = clips
+        .iter()
+        .map(|(_, content)| content.trim())
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n");
+    let source_clip_ids = serde_json::to_string(ids).map_err(|error| error.to_string())?;
     let timestamp = now_timestamp();
     connection
         .execute(
-            "INSERT INTO notes(title, body, tone, image_data, created_at, updated_at)
-             VALUES(?1, ?2, ?3, ?4, ?5, ?5)",
-            params![title, body, tone, image_data, timestamp],
+            "INSERT INTO notes(title, body, tone, image_data, images_json, source_clip_ids,
+                               created_at, updated_at)
+             VALUES(?1, ?2, 'paper', '', '[]', ?3, ?4, ?4)",
+            params![title, body, source_clip_ids, timestamp],
         )
         .map_err(|error| error.to_string())?;
-    note_by_id(&connection, connection.last_insert_rowid())
+    note_by_id(connection, connection.last_insert_rowid())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopNoteStateInput {
+    pub(crate) desktop_pinned: bool,
+    pub(crate) desktop_x: Option<i32>,
+    pub(crate) desktop_y: Option<i32>,
+    pub(crate) desktop_width: i32,
+    pub(crate) desktop_height: i32,
+    pub(crate) always_on_top: bool,
 }
 
 #[tauri::command]
-pub fn update_note(state: State<'_, DataState>, id: i64, input: NoteInput) -> Result<Note, String> {
+pub fn update_note_desktop_state(
+    app: AppHandle,
+    id: i64,
+    input: DesktopNoteStateInput,
+) -> Result<Note, String> {
+    update_note_desktop_state_for_app(&app, id, input)
+}
+
+pub(crate) fn update_note_desktop_state_for_app(
+    app: &AppHandle,
+    id: i64,
+    input: DesktopNoteStateInput,
+) -> Result<Note, String> {
+    if !(220..=900).contains(&input.desktop_width) || !(160..=900).contains(&input.desktop_height) {
+        return Err("桌面便签尺寸超出范围".into());
+    }
+    let state = app.state::<DataState>();
     let connection = open_connection(&state.db_path)?;
-    let (title, body, tone, image_data) = validate_note(input)?;
     let changed = connection
         .execute(
-            "UPDATE notes SET title = ?1, body = ?2, tone = ?3, image_data = ?4,
-             updated_at = ?5 WHERE id = ?6",
-            params![title, body, tone, image_data, now_timestamp(), id],
+            "UPDATE notes SET desktop_pinned = ?1, desktop_x = ?2, desktop_y = ?3,
+                              desktop_width = ?4, desktop_height = ?5, always_on_top = ?6
+             WHERE id = ?7",
+            params![
+                input.desktop_pinned as i64,
+                input.desktop_x,
+                input.desktop_y,
+                input.desktop_width,
+                input.desktop_height,
+                input.always_on_top as i64,
+                id,
+            ],
         )
         .map_err(|error| error.to_string())?;
     require_changed(changed, "便签不存在")?;
-    note_by_id(&connection, id)
+    let note = note_by_id(&connection, id)?;
+    app.emit("notes-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(note)
+}
+
+pub(crate) fn note_for_app(app: &AppHandle, id: i64) -> Result<Note, String> {
+    let state = app.state::<DataState>();
+    let connection = open_connection(&state.db_path)?;
+    note_by_id(&connection, id).map_err(|_| "便签不存在".to_string())
+}
+
+pub(crate) fn pinned_notes_for_app(app: &AppHandle) -> Result<Vec<Note>, String> {
+    let state = app.state::<DataState>();
+    let connection = open_connection(&state.db_path)?;
+    Ok(list_notes_from(&connection)?
+        .into_iter()
+        .filter(|note| note.desktop_pinned)
+        .collect())
 }
 
 #[tauri::command]
-pub fn delete_note(state: State<'_, DataState>, id: i64) -> Result<(), String> {
+pub fn create_note(
+    app: AppHandle,
+    state: State<'_, DataState>,
+    input: NoteInput,
+) -> Result<Note, String> {
+    let connection = open_connection(&state.db_path)?;
+    let (title, body, tone, images_json) = validate_note(input)?;
+    let timestamp = now_timestamp();
+    connection
+        .execute(
+            "INSERT INTO notes(title, body, tone, image_data, images_json, created_at, updated_at)
+             VALUES(?1, ?2, ?3, '', ?4, ?5, ?5)",
+            params![title, body, tone, images_json, timestamp],
+        )
+        .map_err(|error| error.to_string())?;
+    let note = note_by_id(&connection, connection.last_insert_rowid())?;
+    app.emit("notes-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(note)
+}
+
+#[tauri::command]
+pub fn update_note(
+    app: AppHandle,
+    state: State<'_, DataState>,
+    id: i64,
+    input: NoteInput,
+) -> Result<Note, String> {
+    let connection = open_connection(&state.db_path)?;
+    let (title, body, tone, images_json) = validate_note(input)?;
+    let changed = connection
+        .execute(
+            "UPDATE notes SET title = ?1, body = ?2, tone = ?3, image_data = '', images_json = ?4,
+             updated_at = ?5 WHERE id = ?6",
+            params![title, body, tone, images_json, now_timestamp(), id],
+        )
+        .map_err(|error| error.to_string())?;
+    require_changed(changed, "便签不存在")?;
+    let note = note_by_id(&connection, id)?;
+    app.emit("notes-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(note)
+}
+
+#[tauri::command]
+pub fn delete_note(app: AppHandle, state: State<'_, DataState>, id: i64) -> Result<(), String> {
     let connection = open_connection(&state.db_path)?;
     let changed = connection
         .execute("DELETE FROM notes WHERE id = ?1", [id])
         .map_err(|error| error.to_string())?;
-    require_changed(changed, "便签不存在")
+    require_changed(changed, "便签不存在")?;
+    app.emit("notes-changed", ())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn export_note_markdown(
+    state: State<'_, DataState>,
+    id: i64,
+    destination: String,
+) -> Result<String, String> {
+    let destination = markdown_destination(destination)?;
+    let parent = destination
+        .parent()
+        .filter(|path| path.is_dir())
+        .ok_or_else(|| "导出目录不存在".to_string())?;
+    let connection = open_connection(&state.db_path)?;
+    let note = note_by_id(&connection, id).map_err(|_| "便签不存在".to_string())?;
+    export_note_to(&note, &destination, parent)?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn export_notes_markdown(
+    state: State<'_, DataState>,
+    ids: Vec<i64>,
+    destination: String,
+) -> Result<String, String> {
+    if ids.is_empty() || ids.len() > 500 {
+        return Err("请选择要导出的便签".into());
+    }
+    if ids
+        .iter()
+        .enumerate()
+        .any(|(index, id)| ids[..index].contains(id))
+    {
+        return Err("导出列表包含重复便签".into());
+    }
+    let destination = markdown_destination(destination)?;
+    let parent = destination
+        .parent()
+        .filter(|path| path.is_dir())
+        .ok_or_else(|| "导出目录不存在".to_string())?;
+    let connection = open_connection(&state.db_path)?;
+    let notes = ids
+        .iter()
+        .map(|id| note_by_id(&connection, *id).map_err(|_| "有便签已不存在".to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    export_notes_to(&notes, &destination, parent)?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+fn markdown_destination(destination: String) -> Result<PathBuf, String> {
+    let destination = PathBuf::from(destination);
+    let extension = destination
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !extension.eq_ignore_ascii_case("md") {
+        return Err("导出文件必须使用 .md 扩展名".into());
+    }
+    Ok(destination)
+}
+
+fn export_note_to(note: &Note, destination: &Path, parent: &Path) -> Result<(), String> {
+    let export_title = note
+        .title
+        .lines()
+        .map(str::trim)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut markdown = format!("# {export_title}\n");
+    let assets_name = format!("note-{}.assets", note.id);
+    let assets_dir = parent.join(&assets_name);
+    let exported_body = export_note_body(note, &assets_name, &assets_dir, "image")?;
+    if !exported_body.trim().is_empty() {
+        markdown.push('\n');
+        markdown.push_str(exported_body.trim());
+        markdown.push('\n');
+    }
+    fs::write(destination, markdown).map_err(|error| error.to_string())
+}
+
+fn export_notes_to(notes: &[Note], destination: &Path, parent: &Path) -> Result<(), String> {
+    let assets_name = format!(
+        "{}.assets",
+        destination
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .unwrap_or("ClipNote-便签合集")
+    );
+    let assets_dir = parent.join(&assets_name);
+    let mut markdown = String::from("# ClipNote 便签合集\n");
+    for note in notes {
+        let export_title = note
+            .title
+            .lines()
+            .map(str::trim)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let image_prefix = format!("note-{}-image", note.id);
+        let body = export_note_body(note, &assets_name, &assets_dir, &image_prefix)?;
+        markdown.push_str(&format!("\n## {export_title}\n"));
+        if !body.trim().is_empty() {
+            markdown.push('\n');
+            markdown.push_str(body.trim());
+            markdown.push('\n');
+        }
+    }
+    fs::write(destination, markdown).map_err(|error| error.to_string())
+}
+
+fn export_note_body(
+    note: &Note,
+    assets_name: &str,
+    assets_dir: &Path,
+    image_prefix: &str,
+) -> Result<String, String> {
+    let mut exported_body = note.body.clone();
+    if !note.images.is_empty() {
+        fs::create_dir_all(assets_dir).map_err(|error| error.to_string())?;
+        let export_title = note
+            .title
+            .lines()
+            .map(str::trim)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let alt = export_title.replace(']', "\\]");
+        for (index, note_image) in note.images.iter().enumerate() {
+            let (extension, image) = decode_note_image(&note_image.data_url)?;
+            let image_name = format!("{image_prefix}-{}.{extension}", index + 1);
+            fs::write(assets_dir.join(&image_name), image).map_err(|error| error.to_string())?;
+            let reference = format!("![{alt}](<./{assets_name}/{image_name}>)");
+            let token = note_image_token(&note_image.id);
+            if exported_body.contains(&token) {
+                exported_body = exported_body.replace(&token, &reference);
+            } else {
+                exported_body.push_str(&format!("\n\n{reference}"));
+            }
+        }
+    }
+    Ok(exported_body)
+}
+
+fn decode_note_image(data_url: &str) -> Result<(&'static str, Vec<u8>), String> {
+    let (prefix, encoded) = data_url
+        .split_once(',')
+        .ok_or_else(|| "便签图片格式无效".to_string())?;
+    let extension = match prefix {
+        "data:image/png;base64" => "png",
+        "data:image/jpeg;base64" => "jpg",
+        "data:image/webp;base64" => "webp",
+        "data:image/gif;base64" => "gif",
+        _ => return Err("便签图片格式不支持导出".into()),
+    };
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|_| "便签图片编码无效".to_string())?;
+    if bytes.is_empty() || bytes.len() > MAX_NOTE_IMAGE_BYTES {
+        return Err("便签图片大小无效".into());
+    }
+    Ok((extension, bytes))
 }
 
 fn note_by_id(connection: &Connection, id: i64) -> Result<Note, String> {
     connection
         .query_row(
-            "SELECT id, title, body, tone, image_data, created_at, updated_at
+            "SELECT id, title, body, tone, image_data, images_json, source_clip_ids,
+                    desktop_pinned, desktop_x, desktop_y, desktop_width, desktop_height,
+                    always_on_top, created_at, updated_at
              FROM notes WHERE id = ?1",
             [id],
             note_from_row,
@@ -564,41 +958,74 @@ fn validate_note(input: NoteInput) -> Result<(String, String, String, String), S
     if input.body.len() > MAX_NOTE_BYTES {
         return Err("便签内容过长".into());
     }
-    if input.image_data.len() > MAX_NOTE_IMAGE_BYTES {
-        return Err("截图大小超过限制".into());
-    }
-    let image_data = input.image_data.trim().to_string();
-    let supported_image = [
-        "data:image/png;base64,",
-        "data:image/jpeg;base64,",
-        "data:image/webp;base64,",
-        "data:image/gif;base64,",
-    ];
-    if !image_data.is_empty()
-        && !supported_image
-            .iter()
-            .any(|prefix| image_data.starts_with(prefix))
-    {
-        return Err("截图格式不支持".into());
-    }
+    validate_note_images(&input.images, &input.body)?;
     let body = input.body.trim().to_string();
     let title = if input.title.trim().is_empty() {
-        if body.is_empty() && !image_data.is_empty() {
-            "图片便签".into()
-        } else {
-            derive_title(&body)
-        }
+        body.lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty() && !line.starts_with(NOTE_IMAGE_TOKEN_PREFIX))
+            .map(derive_title)
+            .filter(|title| !title.is_empty())
+            .unwrap_or_else(|| {
+                if input.images.is_empty() {
+                    "未命名便签"
+                } else {
+                    "图片便签"
+                }
+                .into()
+            })
     } else {
         truncate_chars(input.title.trim(), 80)
     };
-    if title.is_empty() && body.is_empty() && image_data.is_empty() {
+    if body.is_empty() && input.images.is_empty() && input.title.trim().is_empty() {
         return Err("便签内容不能为空".into());
     }
     let tone = match input.tone.as_str() {
         "sun" | "mint" | "paper" => input.tone,
         _ => "paper".into(),
     };
-    Ok((title, body, tone, image_data))
+    let images_json = serde_json::to_string(&input.images).map_err(|error| error.to_string())?;
+    Ok((title, body, tone, images_json))
+}
+
+fn validate_note_images(images: &[NoteImage], body: &str) -> Result<(), String> {
+    if images.len() > MAX_NOTE_IMAGES {
+        return Err(format!("每张便签最多添加 {MAX_NOTE_IMAGES} 张图片"));
+    }
+    let mut total_bytes = 0;
+    for (index, image) in images.iter().enumerate() {
+        if image.id.is_empty()
+            || image.id.len() > 64
+            || !image.id.chars().all(|character| {
+                character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
+            })
+            || images[..index].iter().any(|other| other.id == image.id)
+        {
+            return Err("便签图片标识无效".into());
+        }
+        total_bytes += decode_note_image(&image.data_url)?.1.len();
+    }
+    if total_bytes > MAX_NOTE_IMAGES_BYTES {
+        return Err("便签图片总大小超过限制".into());
+    }
+
+    let mut remaining = body;
+    while let Some(start) = remaining.find(NOTE_IMAGE_TOKEN_PREFIX) {
+        let after_prefix = &remaining[start + NOTE_IMAGE_TOKEN_PREFIX.len()..];
+        let end = after_prefix
+            .find("}}")
+            .ok_or_else(|| "正文中的图片标记不完整".to_string())?;
+        let image_id = &after_prefix[..end];
+        if !images.iter().any(|image| image.id == image_id) {
+            return Err("正文引用了不存在的图片".into());
+        }
+        remaining = &after_prefix[end + 2..];
+    }
+    Ok(())
+}
+
+fn note_image_token(id: &str) -> String {
+    format!("{NOTE_IMAGE_TOKEN_PREFIX}{id}}}}}")
 }
 
 fn classify_clip(content: &str) -> &'static str {
@@ -739,18 +1166,18 @@ mod tests {
     #[test]
     fn notes_can_be_created_updated_and_deleted() {
         let connection = test_connection();
-        let (title, body, tone, image_data) = validate_note(NoteInput {
+        let (title, body, tone, images_json) = validate_note(NoteInput {
             title: "".into(),
             body: "First line\nDetails".into(),
             tone: "sun".into(),
-            image_data: "".into(),
+            images: vec![],
         })
         .unwrap();
         connection
             .execute(
-                "INSERT INTO notes(title, body, tone, image_data, created_at, updated_at)
+                "INSERT INTO notes(title, body, tone, images_json, created_at, updated_at)
                  VALUES(?1, ?2, ?3, ?4, 1, 1)",
-                params![title, body, tone, image_data],
+                params![title, body, tone, images_json],
             )
             .unwrap();
         let id = connection.last_insert_rowid();
@@ -767,6 +1194,19 @@ mod tests {
             .execute("DELETE FROM notes WHERE id = ?1", [id])
             .unwrap();
         assert!(list_notes_from(&connection).unwrap().is_empty());
+    }
+
+    #[test]
+    fn selected_clips_are_merged_into_a_note_with_sources() {
+        let connection = test_connection();
+        let first = upsert_clip(&connection, "第一段", 1).unwrap().unwrap();
+        let second = upsert_clip(&connection, "第二段", 2).unwrap().unwrap();
+
+        let note = create_note_from_clips_in(&connection, &[first.id, second.id]).unwrap();
+
+        assert_eq!(note.source_clip_ids, vec![first.id, second.id]);
+        assert!(note.body.contains("第一段\n\n---\n\n第二段"));
+        assert_eq!(note.title, "来自剪贴板的 2 条内容");
     }
 
     #[test]
@@ -794,16 +1234,142 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert!(columns.iter().any(|column| column == "image_data"));
+        assert!(columns.iter().any(|column| column == "images_json"));
+        assert!(columns.iter().any(|column| column == "source_clip_ids"));
+        assert!(columns.iter().any(|column| column == "desktop_pinned"));
+        initialize_schema(&connection).unwrap();
 
-        let (title, body, _, image_data) = validate_note(NoteInput {
+        let (title, body, _, images_json) = validate_note(NoteInput {
             title: "".into(),
             body: "".into(),
             tone: "paper".into(),
-            image_data: "data:image/png;base64,iVBORw0KGgo=".into(),
+            images: vec![NoteImage {
+                id: "first".into(),
+                data_url: "data:image/png;base64,iVBORw0KGgo=".into(),
+            }],
         })
         .unwrap();
         assert_eq!(title, "图片便签");
         assert!(body.is_empty());
-        assert!(image_data.starts_with("data:image/png;base64,"));
+        assert!(images_json.contains("data:image/png;base64,"));
+
+        connection
+            .execute(
+                "INSERT INTO notes(title, body, tone, image_data, created_at, updated_at)
+                 VALUES('旧便签', '旧正文', 'paper', ?1, 1, 1)",
+                ["data:image/png;base64,iVBORw0KGgo="],
+            )
+            .unwrap();
+        let migrated = note_by_id(&connection, connection.last_insert_rowid()).unwrap();
+        assert_eq!(migrated.images.len(), 1);
+        assert!(migrated.body.starts_with("{{clipnote-image:legacy}}"));
+    }
+
+    #[test]
+    fn exports_markdown_with_images_in_their_body_order() {
+        let root = std::env::temp_dir().join(format!("clipnote-export-{}", now_timestamp()));
+        fs::create_dir_all(&root).unwrap();
+        let destination = root.join("发布记录.md");
+        let note = Note {
+            id: 42,
+            title: "发布截图".into(),
+            body: "构建前\n\n{{clipnote-image:first}}\n\n构建后\n\n{{clipnote-image:second}}"
+                .into(),
+            tone: "paper".into(),
+            images: vec![
+                NoteImage {
+                    id: "first".into(),
+                    data_url: "data:image/png;base64,Zmlyc3Q=".into(),
+                },
+                NoteImage {
+                    id: "second".into(),
+                    data_url: "data:image/webp;base64,c2Vjb25k".into(),
+                },
+            ],
+            source_clip_ids: vec![],
+            desktop_pinned: false,
+            desktop_x: None,
+            desktop_y: None,
+            desktop_width: 320,
+            desktop_height: 260,
+            always_on_top: true,
+            created_at: 1,
+            updated_at: 1,
+        };
+
+        export_note_to(&note, &destination, &root).unwrap();
+
+        let markdown = fs::read_to_string(&destination).unwrap();
+        assert!(markdown.contains("# 发布截图"));
+        let first_reference = "![发布截图](<./note-42.assets/image-1.png>)";
+        let second_reference = "![发布截图](<./note-42.assets/image-2.webp>)";
+        assert!(markdown.find("构建前").unwrap() < markdown.find(first_reference).unwrap());
+        assert!(markdown.find(first_reference).unwrap() < markdown.find("构建后").unwrap());
+        assert!(markdown.find("构建后").unwrap() < markdown.find(second_reference).unwrap());
+        assert_eq!(
+            fs::read(root.join("note-42.assets/image-1.png")).unwrap(),
+            b"first"
+        );
+        assert_eq!(
+            fs::read(root.join("note-42.assets/image-2.webp")).unwrap(),
+            b"second"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn exports_selected_notes_into_one_markdown_document() {
+        let root = std::env::temp_dir().join(format!("clipnote-batch-export-{}", now_timestamp()));
+        fs::create_dir_all(&root).unwrap();
+        let destination = root.join("项目便签.md");
+        let notes = vec![
+            Note {
+                id: 7,
+                title: "需求".into(),
+                body: "先看需求\n\n{{clipnote-image:first}}".into(),
+                tone: "paper".into(),
+                images: vec![NoteImage {
+                    id: "first".into(),
+                    data_url: "data:image/png;base64,Zmlyc3Q=".into(),
+                }],
+                source_clip_ids: vec![],
+                desktop_pinned: false,
+                desktop_x: None,
+                desktop_y: None,
+                desktop_width: 320,
+                desktop_height: 260,
+                always_on_top: true,
+                created_at: 1,
+                updated_at: 2,
+            },
+            Note {
+                id: 3,
+                title: "结论".into(),
+                body: "可以发布。".into(),
+                tone: "mint".into(),
+                images: vec![],
+                source_clip_ids: vec![],
+                desktop_pinned: false,
+                desktop_x: None,
+                desktop_y: None,
+                desktop_width: 320,
+                desktop_height: 260,
+                always_on_top: true,
+                created_at: 1,
+                updated_at: 1,
+            },
+        ];
+
+        export_notes_to(&notes, &destination, &root).unwrap();
+
+        let markdown = fs::read_to_string(&destination).unwrap();
+        assert!(markdown.starts_with("# ClipNote 便签合集"));
+        assert!(markdown.find("## 需求").unwrap() < markdown.find("## 结论").unwrap());
+        assert!(markdown.contains("![需求](<./项目便签.assets/note-7-image-1.png>)"));
+        assert_eq!(
+            fs::read(root.join("项目便签.assets/note-7-image-1.png")).unwrap(),
+            b"first"
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 }

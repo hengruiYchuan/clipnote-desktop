@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClipNote 密码填充</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <strong>clipnote.</strong>
+      <button id="settings-toggle" type="button" aria-label="配对设置" title="配对设置">⚙</button>
+    </header>
+    <main>
+      <section id="pairing" hidden>
+        <h1>连接 ClipNote</h1>
+        <label>
+          配对码
+          <input id="token" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+        <button id="save-token" type="button">保存配对码</button>
+      </section>
+      <section id="vault" hidden>
+        <div id="site"></div>
+        <input id="search" type="search" placeholder="搜索当前网站的账号" autocomplete="off" />
+        <p id="status" role="status">正在连接本机密码本</p>
+        <div id="candidates"></div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

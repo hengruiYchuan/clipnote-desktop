@@ -1,0 +1,120 @@
+:root {
+  font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  color: #282521;
+  background: #f6f7f4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 340px;
+  margin: 0;
+  background: #f6f7f4;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #cfd4ce;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+header strong {
+  font-family: Georgia, "Microsoft YaHei UI", serif;
+  font-size: 20px;
+}
+
+header strong::first-letter { text-transform: lowercase; }
+
+button, input { font: inherit; }
+
+button { cursor: pointer; }
+
+#settings-toggle {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  font-size: 16px;
+}
+
+main { padding: 14px; }
+
+#pairing, #vault { display: grid; gap: 12px; }
+#pairing[hidden], #vault[hidden] { display: none; }
+
+h1 {
+  margin: 0;
+  font: 600 23px/1.2 Georgia, "Microsoft YaHei UI", serif;
+}
+
+label { display: grid; gap: 6px; color: #686d68; font-size: 12px; }
+
+input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #b8beb8;
+  border-radius: 5px;
+  outline: 0;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+input:focus { border-color: #28735c; box-shadow: 0 0 0 3px rgb(40 115 92 / 14%); }
+
+#save-token {
+  min-height: 38px;
+  border: 1px solid #282521;
+  border-radius: 5px;
+  background: #282521;
+  color: #fff;
+}
+
+#site {
+  overflow: hidden;
+  color: #28735c;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#status { margin: 0; color: #686d68; font-size: 12px; }
+
+#candidates { display: grid; gap: 7px; }
+
+.candidate {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #cfd4ce;
+  border-radius: 5px;
+  background: #fff;
+  padding: 8px;
+  text-align: left;
+}
+
+.candidate:hover, .candidate:focus-visible { border-color: #28735c; background: #edf5f1; }
+
+.candidate__mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #7ca895;
+  border-radius: 4px;
+  background: #dcece5;
+  color: #245b49;
+  font-family: Georgia, serif;
+  font-weight: 700;
+}
+
+.candidate__copy { min-width: 0; }
+.candidate__copy strong, .candidate__copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.candidate__copy strong { font-size: 13px; }
+.candidate__copy small { margin-top: 2px; color: #686d68; font-size: 11px; }
+.candidate__fill { color: #28735c; font-size: 12px; font-weight: 700; }

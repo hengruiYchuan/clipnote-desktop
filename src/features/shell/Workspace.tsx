@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronRight, Power, Search, X } from "lucide-react";
 import { motion } from "motion/react";
 import { desktopBridge } from "../../bridge/desktopBridge";
 import { AppMark } from "../../components/AppMark";
@@ -22,6 +22,7 @@ export function Workspace({
   const query = useShellStore((state) => state.query);
   const section = useShellStore((state) => state.section);
   const setQuery = useShellStore((state) => state.setQuery);
+  const [quitOpen, setQuitOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,9 +62,14 @@ export function Workspace({
         >
           <StatusDot paused={paused} />
         </button>
-        <IconButton label="收起工作台" onClick={close}>
-          <ChevronRight aria-hidden="true" />
-        </IconButton>
+        <div className="workspace__window-actions">
+          <IconButton label="收起工作台" onClick={close}>
+            <ChevronRight aria-hidden="true" />
+          </IconButton>
+          <IconButton label="退出 ClipNote" onClick={() => setQuitOpen(true)}>
+            <X aria-hidden="true" />
+          </IconButton>
+        </div>
       </header>
       {section !== "settings" && (
         <label className="workspace__search">
@@ -88,6 +94,21 @@ export function Workspace({
         </div>
       )}
       <div className="workspace__content">{children}</div>
+      {quitOpen && (
+        <div className="workspace-quit-backdrop" role="presentation">
+          <section className="workspace-quit-dialog" role="alertdialog" aria-modal="true" aria-labelledby="workspace-quit-title">
+            <div className="workspace-quit-dialog__icon"><Power aria-hidden="true" /></div>
+            <div>
+              <h2 id="workspace-quit-title">退出 ClipNote？</h2>
+              <p>程序将停止采集剪贴板，桌宠和浏览器填充服务也会关闭。</p>
+            </div>
+            <footer>
+              <button type="button" onClick={() => setQuitOpen(false)}>取消</button>
+              <button type="button" onClick={() => void desktopBridge.quit()}>退出并结束进程</button>
+            </footer>
+          </section>
+        </div>
+      )}
     </motion.main>
   );
 }

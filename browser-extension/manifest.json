@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "ClipNote 密码填充",
+  "version": "0.1.0",
+  "description": "从本机 ClipNote 密码本搜索并填充当前网站账号。",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["http://127.0.0.1:32145/*"],
+  "action": {
+    "default_title": "ClipNote 密码填充",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
