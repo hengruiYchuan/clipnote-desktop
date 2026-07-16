@@ -271,7 +271,7 @@ fn create_sticky_window(app: &AppHandle, note: &crate::data::Note) -> Result<(),
 }
 
 #[tauri::command]
-pub fn open_desktop_note(app: AppHandle, id: i64) -> Result<(), String> {
+pub async fn open_desktop_note(app: AppHandle, id: i64) -> Result<(), String> {
     let mut note = crate::data::note_for_app(&app, id)?;
     note.desktop_pinned = true;
     note = crate::data::update_note_desktop_state_for_app(
